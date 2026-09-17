@@ -765,77 +765,40 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
 }
 
 /* ============================================================
-   响应式：窄屏改为「节点标签横排 + 面板常规流式」，
-   避免绝对定位在小屏上互相遮挡
+   响应式：手机 / 窄屏沿用桌面同款「节点环绕 + 飞入中心 + 面板浮层」，
+   结构与三态动画完全一致，只把节点和面板的尺寸收敛到窄屏合适的大小。
+   因为面板在窄屏几乎占满宽度、左右没有余量，
+   详情态里 5 个「停靠节点」改为排在面板下方一行（见 JS 的 dockPos）。
    ============================================================ */
 @media (max-width: 860px) {
-  body { overflow: auto; }
-  /* 移动端以节点为导航，隐藏顶部按钮组，避免与姓名挤成两行 */
+  /* 窄屏放不下 6 个导航按钮，仍以节点导航，故隐藏顶部按钮组 */
   .topnav { display: none; }
   .brand { font-size: 0.92rem; white-space: nowrap; }
   .topbar { padding: 12px 18px; }
-  .stage { position: relative; inset: auto; padding: 72px 16px 92px; }
-  .links { display: none; }
-  .nodes {
-    position: static;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 12px 14px;
-    margin-bottom: 18px;
+
+  /* 节点：随屏宽缩放，纵向同时受视口高度约束，矮屏 / 横屏也塞得下 */
+  .node { width: clamp(84px, 26vw, 120px); gap: 8px; }
+  .node-neuron {
+    width: clamp(44px, min(13vw, (27vh - 86px) / 1.09), 92px);
+    height: clamp(44px, min(13vw, (27vh - 86px) / 1.09), 92px);
   }
-  .node {
-    position: static;
-    transform: none !important;
-    width: auto;
-    opacity: 1;
-    pointer-events: auto;
-  }
-  .node-neuron { width: 88px; height: 88px; }
-  .node:focus-visible .node-neuron { filter: drop-shadow(0 0 6px var(--c)) drop-shadow(0 0 16px var(--c)); }
   .node-name {
-    position: static;
-    transform: none;
-    font-size: 0.84rem;
-    padding: 4px 11px;
-  }
-  .node.is-active .node-name { opacity: 1; }
-  .node.is-active .node-neuron { transform: none; }
-
-  /* 窄屏的三段式：节点原地放大（transform 不影响流式排版），
-     其余节点变淡但仍可点，用来切换聚焦对象 */
-  html[data-phase="focus"] .node.is-active,
-  html[data-phase="detail"] .node.is-active {
-    transform: scale(1.12) !important;
-  }
-  html[data-phase="focus"] .node:not(.is-active) {
-    opacity: 0.42;
-    visibility: visible;
-    pointer-events: auto;
+    font-size: 0.76rem;
+    padding: 4px 10px;
+    top: calc(100% + 5px);
   }
 
-  .panels { position: static; inset: auto; pointer-events: auto; }
+  /* 面板：上让出核心节点，下让出「停靠节点一行 + 底部提示」 */
   .panel {
-    position: static;
-    width: 100%;
-    max-width: 100%;
-    max-height: none;
-    transform: none;
-    opacity: 0;
-    visibility: hidden;
-    display: none;
+    width: min(760px, calc(100vw - 26px));
+    top: 24%;
+    max-height: min(50%, calc(58% - 62px));
+    padding: 20px 18px 22px;
+    border-radius: 18px;
   }
-  .panel.is-active {
-    display: block;
-    opacity: 1;
-    visibility: visible;
-    transform: none;
-    animation: panelIn 0.5s ease both;
-  }
-  @keyframes panelIn {
-    from { opacity: 0; transform: translateY(14px); }
-    to { opacity: 1; transform: none; }
-  }
+
+  /* 面板内部排版：单列卡片 + 校徽跟随文字，避免窄列被挤 */
+  .deck--4, .deck--2 { grid-template-columns: 1fr; }
   .timeline-item { padding-right: 0; }
   .school-logos {
     position: static;
@@ -845,12 +808,32 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
   }
   .school-logo { height: 38px; max-width: 128px; }
   .school-logo--mark { height: 38px; width: 38px; }
-  .deck--4, .deck--2 { grid-template-columns: 1fr; }
+
+  /* 底部提示：窄屏允许换行，避免长句溢出屏幕 */
   .hint {
-    position: static;
-    transform: none;
-    margin: 22px auto 0;
+    max-width: calc(100vw - 28px);
     white-space: normal;
+    font-size: 0.74rem;
+  }
+}
+
+/* 横屏手机等「很矮」的窄屏：高度只有 390 上下，
+   要同时塞下 顶栏 / 核心节点 / 面板 / 停靠节点行 / 底部提示，
+   所以面板下移、节点和名称进一步收紧（数值与 JS 的 panelTopPx / dockPos 对应）。 */
+@media (max-width: 860px) and (max-height: 560px) {
+  .panel {
+    top: 32%;
+    max-height: min(50%, calc(58% - 76px));
+    padding: 16px 16px 18px;
+  }
+  .node-neuron {
+    width: clamp(36px, min(13vw, (27vh - 86px) / 1.09), 92px);
+    height: clamp(36px, min(13vw, (27vh - 86px) / 1.09), 92px);
+  }
+  .node-name {
+    font-size: 0.72rem;
+    padding: 3px 9px;
+    top: calc(100% + 3px);
   }
 }
 
@@ -1519,6 +1502,12 @@ var DOCK_SLOTS = [
   { sx:  0, sy:  1.00 }
 ];
 
+/* 窄屏（手机）停靠位：面板几乎占满宽度，左右没有余量，
+   因此 5 个节点改为排在面板下方一行，k = 0..4 表示从左到右的顺序 */
+var DOCK_SLOTS_NARROW = [
+  { k: 0 }, { k: 1 }, { k: 2 }, { k: 3 }, { k: 4 }
+];
+
 var MOBILE_MAX = 860;         // 与该宽度以下的移动布局保持一致
 var PANEL_MAX_W = 760;        // 与 CSS 中 .panel 的 width 保持一致
 
@@ -1528,34 +1517,62 @@ function topbarBottom() {
   return tb ? tb.getBoundingClientRect().bottom : 60;
 }
 
+/* 面板上沿像素位置（必须与 CSS 中 .panel 的 top 保持一致：
+   窄屏 24%（很矮的横屏 32%），桌面 27%，矮窗口 25%） */
+function panelTopPx() {
+  if (W <= MOBILE_MAX) return H * (H < 560 ? 0.32 : 0.24);
+  return H * (H < 680 ? 0.25 : 0.27);
+}
+
+/* 节点横向半宽：窄屏的节点更小，环形半径要按实测尺寸收敛，避免贴边或越界 */
+function nodeHalfWidth() {
+  var el = nodeEls[SECTIONS[0].id];
+  var box = el && el.querySelector('.node-neuron');
+  var w = (box && box.offsetWidth) ? box.offsetWidth : 140;
+  return Math.max(w / 2, 46);
+}
+
 /* 核心位（当前分区所在位置）：落在「顶栏」与「面板上沿」之间的空隙正中。
-   神经元的尺寸由 CSS 按视口高度给出（见 .node-neuron 的 clamp），这里读出实际高度，
-   并按 .node.is-active 的 scale(1.09) 折算包围盒，保证上下都不重叠。 */
+    神经元的尺寸由 CSS 按视口高度给出（见 .node-neuron 的 clamp），这里读出实际高度，
+    并按 .node.is-active 的 scale(1.09) 折算包围盒，保证上下都不重叠。 */
 function activePos() {
-  var panelTop = H * (H < 680 ? 0.25 : 0.27);   // 与 CSS 中 .panel 的 top 保持一致
+  var panelTop = panelTopPx();
   var el = nodeEls[activeId];
   var box = el && el.querySelector('.node-neuron');
   var half = ((box ? box.offsetHeight : 140) * 1.09) / 2;
   var topB = topbarBottom();
   var margin = 12;
-  var y = Math.min((topB + panelTop) / 2, panelTop - half - margin);
+  // 窄屏的名称标签在神经元下方，占位要一起算进去，否则矮屏会压到面板上沿
+  var below = half + (W <= MOBILE_MAX ? 26 : 0);
+  var y = Math.min((topB + panelTop) / 2, panelTop - below - margin);
   y = Math.max(y, topB + half + margin);
   return { x: W * 0.5, y: y };
 }
 
 /* 把 5 个停靠位依次分配给「非当前」分区 */
 function assignSlots() {
+  var slots = (W <= MOBILE_MAX) ? DOCK_SLOTS_NARROW : DOCK_SLOTS;
   var i = 0;
   SECTIONS.forEach(function (s) {
     if (s.id === activeId) { s.slot = null; return; }
-    s.slot = DOCK_SLOTS[i % DOCK_SLOTS.length];
+    s.slot = slots[i % slots.length];
     i++;
   });
 }
 
 /* 某个分区的停靠坐标（视口坐标） */
 function dockPos(s) {
-  var slot = s.slot || DOCK_SLOTS[0];
+  var slot = s.slot;
+
+  // 窄屏：面板占满宽度，5 个节点在面板下方排成一行
+  if (W <= MOBILE_MAX) {
+    var k = (slot && typeof slot.k === 'number') ? slot.k : 2;
+    var step = Math.min((W - 28) / 5, W * 0.175);
+    // H - 80 是矮屏保护：横屏手机高度很小，停靠行不能压到底部提示上
+    return { x: W * 0.5 + (k - 2) * step, y: Math.min(H * 0.82, H - 80) };
+  }
+
+  slot = slot || DOCK_SLOTS[0];
   var panelHalf = Math.min(PANEL_MAX_W, W * 0.56) / 2;
   var gap = Math.min(140, Math.max(96, W * 0.11));
   var spread = H < 680 ? 0.36 : 0.34;
@@ -1566,7 +1583,10 @@ function dockPos(s) {
 }
 
 /* 节点横向半径（用于连线裁剪） */
-function nodeHalfW() { return H < 680 ? 58 : 74; }
+function nodeHalfW() {
+  if (W <= MOBILE_MAX) return nodeHalfWidth() + 2;
+  return H < 680 ? 58 : 74;
+}
 
 var stage = document.getElementById('stage');
 var nodesWrap = document.getElementById('nodes');
@@ -1587,9 +1607,6 @@ Array.prototype.forEach.call(document.querySelectorAll('.panel'), function (el) 
 var activeId = null;       // 概览态没有选中项；聚焦/详情态为当前分区 id
 var phase = 'overview';    // 'overview' | 'focus' | 'detail'
 var W = 0, H = 0;
-
-function isMobile() { return window.innerWidth <= MOBILE_MAX; }
-
 /* 把节点摆到视口坐标 p（换算成相对舞台中心的 --dx / --dy） */
 function placeNode(el, p) {
   if (!el || !p) return;
@@ -1605,17 +1622,21 @@ function neuronHeight() {
 }
 
 /* 概览位：6 个分区均布在一个椭圆环上，中央刻意留空给「聚焦」用。
-   环的半径同时受顶栏、底部提示和左右边界约束，保证任何视口都不越界。 */
+   环的半径同时受顶栏、底部提示和左右边界约束，保证任何视口都不越界。
+   手机等窄屏走同一套环形布局，只是节点更小、半径相应收敛。 */
 function overviewPos(i) {
+  var narrow = W <= MOBILE_MAX;
   var nH = neuronHeight();
   var cx = W * 0.5;
   var cy = H * 0.5;
-  var topB = topbarBottom() + 18;                 // 不压顶栏
-  var botL = H - 104;                             // 不压底部提示
-  var maxRy = Math.min(cy - topB - nH / 2, botL - cy - nH / 2 - 40);
-  var ry = Math.max(108, Math.min(H * 0.3, maxRy));
-  var rx = Math.max(132, Math.min(W * 0.34, W * 0.5 - 84 - 44));
-  var a = (-90 + i * 60) * Math.PI / 180;         // 从正上方起，每 60° 一个
+  var topB = topbarBottom() + (narrow ? 14 : 18);   // 不压顶栏
+  var botL = H - (narrow ? 74 : 104);               // 不压底部提示
+  var maxRy = Math.min(cy - topB - nH / 2,
+                       botL - cy - nH / 2 - (narrow ? 30 : 40));
+  var ry = Math.max(narrow ? 96 : 108, Math.min(H * 0.3, maxRy));
+  var maxRx = W * 0.5 - nodeHalfWidth() - 12;       // 左右都不能出屏
+  var rx = Math.max(narrow ? 70 : 132, Math.min(W * 0.34, maxRx));
+  var a = (-90 + i * 60) * Math.PI / 180;           // 从正上方起，每 60° 一个
   return { x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry };
 }
 
@@ -1626,16 +1647,6 @@ function focusPos() { return { x: W * 0.5, y: H * 0.44 }; }
 function layout() {
   W = window.innerWidth;
   H = window.innerHeight;
-
-  // 窄屏是流式排版：清掉位移，放大由 CSS 的 data-phase 规则负责
-  if (isMobile()) {
-    Array.prototype.forEach.call(document.querySelectorAll('.node'), function (el) {
-      el.style.removeProperty('--dx');
-      el.style.removeProperty('--dy');
-    });
-    drawLinks();
-    return;
-  }
 
   // 概览态：全部节点停在环上，谁也不占中央
   if (phase === 'overview') {
@@ -1666,7 +1677,7 @@ function drawLinks() {
   if (!linksSvg) return;
   linksSvg.innerHTML = '';
   // 连线只在详情态出现：概览/聚焦时中央没有「核心位」，画出来是散的
-  if (isMobile() || phase !== 'detail' || !activeId) {
+  if (phase !== 'detail' || !activeId) {
     linksSvg.style.opacity = '0';
     return;
   }
@@ -1735,11 +1746,20 @@ function setHash(hash) {
 function setHint(text) { if (hint) hint.textContent = text; }
 
 function hintFor(id) {
-  if (phase === 'overview') return '点击任意名称，进入部署视角';
+  // 触屏没有 Esc 键，提示文案改成对应的点按说法
+  // （这里读 window.innerWidth 而不是 W：首次带锚点直达时 W 还没被 layout() 赋值）
+  var touch = window.innerWidth <= MOBILE_MAX;
+  if (phase === 'overview') {
+    return touch ? '轻点任意名称，进入部署视角' : '点击任意名称，进入部署视角';
+  }
   var s = SECTIONS.filter(function (x) { return x.id === id; })[0];
   var name = s ? s.name : '';
-  if (phase === 'focus') return '再次点击「' + name + '」展开内容　·　Esc 返回概览';
-  return '正在浏览「' + name + '」　·　点击四周其他节点切换　·　Esc 返回';
+  if (phase === 'focus') {
+    return touch ? ('再次轻点「' + name + '」展开内容')
+                 : ('再次点击「' + name + '」展开内容　·　Esc 返回概览');
+  }
+  return touch ? ('正在浏览「' + name + '」　·　轻点下方其他节点切换')
+               : ('正在浏览「' + name + '」　·　点击四周其他节点切换　·　Esc 返回');
 }
 
 /* 刷新选中标记：节点高亮；面板只在详情态展开 */
