@@ -1,0 +1,2126 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-phase="overview">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>王俊洋 David Wang · 神经网络主页</title>
+<meta name="description" content="王俊洋 David Wang 的个人主页：以神经网络节点导航的方式呈现简介、爱好、作品、教育与联系方式。" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<style>
+/* ============================================================
+   V3 · 神经网络主题
+   - 深空背景 + canvas 神经元脉络（程序化生成，无需图片）
+   - 6 个发光节点分布屏幕四周，点击后飞向中心并展开内容
+   - 全部样式/脚本内联，页面自包含；不依赖 style.css / main.js
+   ============================================================ */
+:root {
+  --bg: #04060d;
+  --bg-2: #070c18;
+  --ink: #e9f0ff;
+  --muted: #93a6c4;
+  --line: rgba(120, 170, 255, 0.16);
+  --panel-bg: linear-gradient(158deg, rgba(17, 26, 46, 0.86), rgba(8, 13, 26, 0.93));
+  --shadow: 0 26px 70px rgba(0, 0, 0, 0.6);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+/* 背景必须画在「有高度」的元素上：页面主体全是 fixed/absolute，
+   body 自身高度为 0 会让渐变定位区退化、不透明层不绘制（透出白底）。
+   因此给 html 定高 + 底色，body 用 min-height 撑满视口。 */
+html {
+  height: 100%;
+  background-color: var(--bg);
+}
+
+body {
+  min-height: 100%;
+  background:
+    radial-gradient(1200px 800px at 50% 12%, rgba(34, 78, 140, 0.28), transparent 62%),
+    radial-gradient(900px 700px at 12% 82%, rgba(88, 40, 140, 0.22), transparent 60%),
+    radial-gradient(900px 700px at 88% 78%, rgba(20, 96, 120, 0.2), transparent 60%),
+    linear-gradient(180deg, var(--bg-2), var(--bg) 55%, #03050b);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* ---------- 背景画布 ---------- */
+#fx {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: block;
+}
+
+/* 让四角略暗，中心更聚焦；聚焦态会进一步压暗四周 */
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.78;
+  transition: opacity 0.7s ease;
+  background: radial-gradient(circle at 50% 46%, transparent 38%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+/* ---------- 舞台 ---------- */
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+}
+
+/* 节点之间的发光连线 */
+.links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+.link-glow {
+  stroke-linecap: round;
+  filter: blur(3px);
+}
+.link-core {
+  stroke-linecap: round;
+  stroke-dasharray: 7 13;
+  animation: linkFlow 2.6s linear infinite;
+}
+@keyframes linkFlow {
+  to { stroke-dashoffset: -40; }
+}
+
+/* ---------- 节点 ---------- */
+.nodes {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.node {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) translate(var(--dx, 0px), var(--dy, 0px)) scale(1);
+  width: 168px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  transition: transform 0.95s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.5s ease,
+              visibility 0.5s;
+  -webkit-tap-highlight-color: transparent;
+}
+.node:focus-visible { outline: none; }
+.node:focus-visible .node-neuron {
+  filter: drop-shadow(0 0 10px #ffffff) drop-shadow(0 0 30px var(--c));
+}
+
+/* 节点：神经元（胞体 + 树突 + 发光的突触末梢 + 流动电信号） */
+.neuron-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+.node-neuron {
+  position: relative;
+  display: block;
+  /* 随视口高度自适应：始终能塞进「顶栏 ↔ 面板上沿」之间（见 activePos()） */
+  width: clamp(64px, calc((27vh - 86px) / 1.09), 140px);
+  height: clamp(64px, calc((27vh - 86px) / 1.09), 140px);
+  filter: drop-shadow(0 0 5px var(--c)) drop-shadow(0 0 15px var(--c));
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), filter 0.5s ease;
+  will-change: transform, filter;
+  pointer-events: none;
+}
+.node-neuron svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* 树突 / 胞体：颜色取节点色 */
+.node-neuron .dendrite { fill: var(--c); opacity: 0.9; }
+.node-neuron .dendrite-hl {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.34);
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+.node-neuron .soma { fill: var(--c); opacity: 0.96; }
+.node-neuron .soma-hi { opacity: 0.9; }
+.node-neuron .soma-rim { opacity: 0.72; }
+.node-neuron .soma-core { fill: #ffffff; opacity: 0.92; }
+
+/* 突触末梢：呼吸式闪烁 */
+.node-neuron .tip {
+  fill: #ffffff;
+  opacity: 0.85;
+  animation: tipPulse 3.4s ease-in-out infinite;
+}
+@keyframes tipPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+/* 沿树突流动的电信号 */
+.node-neuron .spark {
+  fill: #ffffff;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 3px #ffffff);
+}
+
+/* 节点名称：绝对定位于神经元下方，使胞体中心＝节点中心 */
+.node-name {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 14px;
+  font-size: 0.98rem;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  color: #dce8ff;
+  background: rgba(8, 14, 28, 0.66);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+  transition: color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.node:hover .node-neuron {
+  transform: scale(1.06);
+  filter: drop-shadow(0 0 8px var(--c)) drop-shadow(0 0 26px var(--c));
+}
+.node:hover .node-name {
+  color: #fff;
+  border-color: color-mix(in srgb, var(--c) 65%, transparent);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--c) 40%, transparent);
+}
+
+/* 当前选中的节点：飞到面板正上方的「核心位」，持续发亮 */
+.node.is-active {
+  opacity: 1;
+  pointer-events: none;
+  cursor: default;
+}
+.node.is-active .node-neuron {
+  transform: scale(1.09);
+  filter: drop-shadow(0 0 10px var(--c)) drop-shadow(0 0 36px var(--c));
+}
+.node.is-active .node-neuron .dendrite { opacity: 1; }
+.node.is-active .node-neuron .tip { animation-duration: 2.2s; }
+.node.is-active .node-name {
+  color: #fff;
+  border-color: color-mix(in srgb, var(--c) 70%, transparent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--c) 45%, transparent);
+  /* 桌面端：蓝色神经元紧贴面板上沿，此处标签会压住面板，故仅隐去视觉；
+     用 opacity（而非 visibility）以保证按钮仍保有可读名称，供读屏使用 */
+  opacity: 0;
+}
+
+/* ============================================================
+   三态：概览（只有名称）→ 聚焦（居中放大、只剩大号名称）→ 详情（展开面板）
+   由 <html data-phase> 驱动，js 里对应 'overview' / 'focus' / 'detail'
+   ============================================================ */
+
+/* —— 概览态：6 个部分都只显示「神经元 + 名称」，中央留空 —— */
+html[data-phase="overview"] .node { opacity: 1; }
+
+/* —— 聚焦态：被点中的节点飞到屏幕中央并整体放大，只有名称是重点 —— */
+html[data-phase="focus"] .node.is-active {
+  /* 覆盖 .node 的基础 transform：中心点不变，只把整体放大 */
+  transform: translate(-50%, -50%) translate(var(--dx, 0px), var(--dy, 0px)) scale(1.6);
+  pointer-events: auto;      /* 允许再点一次进入详情 */
+  cursor: pointer;
+}
+html[data-phase="focus"] .node.is-active .node-neuron {
+  transform: none;           /* 放大交给 .node 整体做，避免二次缩放 */
+  filter: drop-shadow(0 0 14px var(--c)) drop-shadow(0 0 52px var(--c));
+}
+html[data-phase="focus"] .node.is-active .node-name { opacity: 1; }
+
+/* 聚焦态：其余部分完全退场（既不可点，也不进读屏顺序） */
+html[data-phase="focus"] .node:not(.is-active) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* 聚焦态：给被选中的部署点套一圈缓缓呼吸的「部署环」 */
+html[data-phase="focus"] .node.is-active .node-neuron::after {
+  content: "";
+  position: absolute;
+  inset: -15%;
+  border: 1px solid color-mix(in srgb, var(--c) 62%, transparent);
+  border-radius: 50%;
+  animation: deployRing 2.8s ease-in-out infinite;
+}
+@keyframes deployRing {
+  0%, 100% { opacity: 0.22; transform: scale(0.94); }
+  50%      { opacity: 0.8;  transform: scale(1.05); }
+}
+
+/* 聚焦态：四周压暗，把注意力收到中央 */
+html[data-phase="focus"] .vignette { opacity: 1; }
+
+/* —— 详情态：被选节点贴到面板上沿，四周其他节点保持可点 —— */
+html[data-phase="detail"] .node:not(.is-active) { opacity: 0.82; }
+html[data-phase="detail"] .node:not(.is-active):hover { opacity: 1; }
+
+
+/* ---------- 中心内容面板 ---------- */
+.panels {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.panel {
+  position: absolute;
+  left: 50%;
+  top: 27%;
+  /* 宽度与 JS 中的 dockPos() 保持一致（min(760px, 56vw)），
+     保证左右两侧的节点永远落在面板之外 */
+  width: min(760px, 56vw);
+  /* 顶部 27% 起始；上限 48%，同时保证面板底部不压到正下方「联系」节点
+     （联系节点顶边约在 84%H - 74px 处） */
+  max-height: min(48%, calc(57% - 74px));
+  transform: translateX(-50%) translateY(10px);
+  padding: 26px 34px 30px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--panel-bg);
+  box-shadow: var(--shadow), inset 0 0 70px rgba(56, 189, 248, 0.05);
+  backdrop-filter: blur(16px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+              visibility 0.55s;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 170, 255, 0.35) transparent;
+}
+.panel::-webkit-scrollbar { width: 8px; }
+.panel::-webkit-scrollbar-thumb {
+  background: rgba(120, 170, 255, 0.3);
+  border-radius: 8px;
+}
+.panel.is-active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+/* 面板顶部的高光条，颜色跟随该部分主题色 */
+.panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--c), transparent);
+  opacity: 0.9;
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.panel-title {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  letter-spacing: 0.04em;
+}
+.panel-en {
+  font-size: 0.82rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--c) 70%, #cfe0ff);
+  opacity: 0.85;
+}
+
+.panel p { line-height: 1.85; }
+
+/* ---------- 头像 + 姓名（关于我） ---------- */
+.hero-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+}
+.avatar-ring {
+  position: relative;
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  padding: 4px;
+  background: conic-gradient(from 0deg, #38bdf8, #a855f7, #f472b6, #38bdf8);
+  box-shadow: 0 0 40px rgba(56, 189, 248, 0.4);
+  animation: ringSpin 12s linear infinite;
+}
+@keyframes ringSpin { to { transform: rotate(360deg); } }
+.avatar-ring img {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  background: #0a1120;
+  animation: ringSpin 12s linear reverse infinite;
+}
+.hero-name {
+  margin: 16px 0 0;
+  font-size: clamp(1.9rem, 3.4vw, 2.6rem);
+  letter-spacing: 0.06em;
+}
+.hero-name-en {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.hero-sub {
+  margin: 12px 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* ---------- Morphing 格言 ---------- */
+.morphing--tagline { margin-top: 14px; }
+.morphing .morph-item { margin: 0; }
+.morphing:not(.is-ready) .morph-item { display: none; }
+.morphing:not(.is-ready) .morph-item:first-child { display: block; }
+.morphing.is-ready { display: grid; }
+.morphing.is-ready .morph-item {
+  grid-area: 1 / 1;
+  align-self: center;
+  opacity: 0;
+  filter: blur(10px);
+  transform: translateY(8px);
+  transition: opacity 0.7s ease, filter 0.7s ease, transform 0.7s ease;
+  pointer-events: none;
+  will-change: opacity, filter, transform;
+}
+.morphing.is-ready .morph-item.is-active {
+  opacity: 1;
+  filter: blur(0);
+  transform: translateY(0);
+}
+.tagline {
+  font-size: 1.12rem;
+  letter-spacing: 0.08em;
+  color: #cfe0ff;
+}
+.tagline-en {
+  font-size: 1rem;
+  letter-spacing: 0.14em;
+  color: #9fd0ff;
+}
+
+/* ---------- Video Text 标题 ---------- */
+.video-text {
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+}
+.video-text__label { display: inline-block; }
+.video-text__media {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  transition: opacity 0.45s ease;
+}
+.video-text__media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.video-text.is-video .video-text__label {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.video-text.is-video .video-text__media { opacity: 1; }
+
+/* ---------- 简介 ---------- */
+.info-list {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.info-list li {
+  padding: 9px 16px;
+  border-radius: 12px;
+  background: rgba(11, 18, 34, 0.66);
+  border: 1px solid rgba(120, 170, 255, 0.12);
+  font-size: 0.93rem;
+  color: #d5e2f8;
+}
+.info-list strong {
+  color: #7dd3fc;
+  font-weight: 600;
+  margin-right: 8px;
+}
+.intro-en {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+/* ---------- 卡片（爱好 / 作品） ---------- */
+.deck {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+.deck--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.deck--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.card {
+  position: relative;
+  padding: 18px;
+  border-radius: 16px;
+  background: linear-gradient(160deg, rgba(20, 30, 52, 0.9), rgba(10, 16, 30, 0.92));
+  border: 1px solid rgba(120, 170, 255, 0.14);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.4s ease, border-color 0.4s ease;
+}
+.card h3 {
+  margin: 0 0 8px;
+  font-size: 1.02rem;
+  color: #eaf2ff;
+}
+.card p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.card:hover {
+  transform: translateY(-5px);
+  border-color: color-mix(in srgb, var(--c) 55%, transparent);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5),
+              0 0 28px color-mix(in srgb, var(--c) 30%, transparent);
+}
+
+/* 卡片的错落“叠牌”感：轻量，不会溢出面板 */
+@media (hover: hover) and (min-width: 901px) and (prefers-reduced-motion: no-preference) {
+  .deck--4 .card:nth-child(1) { transform: translate(-5px, 3px) rotate(-1.6deg); }
+  .deck--4 .card:nth-child(2) { transform: translate(-1px, -3px) rotate(-0.6deg); }
+  .deck--4 .card:nth-child(3) { transform: translate(2px, 3px) rotate(0.7deg); }
+  .deck--4 .card:nth-child(4) { transform: translate(5px, -2px) rotate(1.7deg); }
+  .deck--2 .card:nth-child(1) { transform: translate(-4px, -2px) rotate(-0.8deg); }
+  .deck--2 .card:nth-child(2) { transform: translate(4px, 2px) rotate(0.8deg); }
+  .deck:hover .card,
+  .deck:focus-within .card { transform: translateY(-5px) rotate(0deg); }
+}
+
+/* 爱好卡片自定义鼠标指针（沿用 V2） */
+.hobby-card--football { cursor: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAC/ElEQVR42s1XTWgTQRTOIYdcLS0ULFg1GK0xUjFBMChUeigG8SAS9WAOBcHWisWKINhrDwUPhd4UPIkglCKih+JBlFAQFIQeqxE1FC9qGxqo8Jxv3Nm+LLOzb4MBP3iwzLy/nXl/k0jExI7eTFJRVlFJ0U2PSt5aMtEJKMUpRWVFC4rWFVEIrXs84E39C8P423FF9aCx3l056zejuiebbNd4WlHVKOzpG6DLoxP0+Mkiff1WJ8DsAVjDHnjAyxyBjnRc40Vz1D07B2jy1jStrX2nILgDHOCFDGTZ1RRjG8/kjlN1+S2FIcwBA8hCh9gJ79i18UJxxPrXcRwwpwFdzIm0K+Cq5s+jjEsdME6wk6haA9OLWH1vrmNvxwFzHSwmxm15rlMNwSPBxkaDdu8vaMK3BNDNUjTFHaiYVJMc/bv3H+jIsWH/BPCNNclVsBStcAdWjLKRMxdp9t48rX6sWZXMzd8P5rlfJ7BnA3RBJ3QzmRUefI2/Fe1Qi9ITp876zsD7cxdGyVGGNYEHvMYodLRWUN9GQwej10T04uqnGj17vkRXxqaob+9gi+CeA4VI42G80AWd0A0bbC+b8DqZrucczWaTll6+oonJO5Q7OiQ2bggykIUO6OJgvaPkB+Dh/FBo8KDOx3XA9AsbYMsPRIkDwPDp82Lj4HUh6ID1CoJAQEkdAK8LwSvISo4NUS11ICyFLdeZNWmoGxD6uQvBlLIReFyADdaYkqYWYIzSw4QLN6buRjoAHhdgw+Nd4JWwHFWK0Uy6VTPpz+Tp6vXbVsJet6OZBUpxWdyMfvz8RQcHT2rBmdm50L/DHnjACxlxM4pqx5cqY36f2Nr6HeoA9ky9h4y4HbsGkgcPH2mh/n15qn3+EtnxwANeyEBWPJDYRrLXb5b9nF18+oKkAK+pLdAhGsmsE7EXMNIhxXbfLOhiT8abEOxSdE01FcmgwqMdMl3b6bkpNs6cyCmquR4mwQoX8jCBjlxHnmZoKqCOPM3+i8ep4Hle8ajt5/kfCe2ppOMHGXsAAAAASUVORK5CYII=") 16 16, auto; }
+.hobby-card--pool { cursor: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABxElEQVR42mNgGIpAUEKdA4h1gNgBikFsDlpbqgHEzUB8Hoj/48DnoWo0qGmxChCvx2MpLgzSo0Kp5QVA/J0My2EYpLeAHItZgHg+BRajY5BZLKQ4gJqWwx1BSrD/pxEuICbBfaehA77jTZjEpnYZZcP/0QnZ/1s6JoAxiA0SIzZ34MvneDWLymj9r23s/P/h46f/x0+e+V9a2QTGIDZIDCQHUkOEIzSwOaCZkOUbN+/4DwKLlq7GkAeJgQBIDRGOaMbmAHwlHNh3IPD795//Cmqm/1W0LP4fOXoSjEFskBhIDgRAagk44Dy2sh1vnIOCGAQePnoCFktOL/wPAyA2SAwkBwIgtUSkCQ5kB+jgUwxKZDAACwE5VeP/sYnZYAxiI4cACID0EHCADrIDHPApBqV0ZOAXHI+hBiSGDEB6CDjAgSwH7Ni1HyxmZuP5PzG1AIxBbJAYSI5cBxAdBaBsBxI7f+EyXAzEBomB5MiNAqITITEOIDkRkpINYVHg6B4MthiEQWzkKCA5G5JaEMFCARnDfE9JQURSUQzyLawoBrEpLooHvDIaFNXxgDdIBkWTbFA0Sge8WT5oOiaDoms2aDqntAIAsfw0FXzJhdAAAAAASUVORK5CYII=") 16 16, auto; }
+.hobby-card--vocaloid { cursor: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABYUlEQVR42mNgoBHgndIhAcQBQNwPxN1ALMNASwC0QAGIE4B4OhBfB+L/aPg6tS3UAOIMIF4OxPexWIgNK1BqaQQQrwfi90RaiIxvUsNyUi39Lzp30n/FVfP/K69dZEGpA+YTYeF3ID4MxO1A7KG7fa2W5dHd/6FYgRYh8BmItwNxDRA7ADEHsh6QpVRzAAiorl9yQG7ZbFCQngRaZgLELPjUU90BQEPmQw2bT6T6UQeMOmDUAaMOoK8DgOIcQBwDxNOhamfRzQFAMQ8gfoxkITqmnQOglv/GYzkIq5NjoQ4QN0AtBuGjOBxwm4DlpDkAqJgHybfY8FIktTJEWH6XFMtZgHg/AQPPoyW873jUgqLGgxQHxBDhoxNoejJwqHtMkuVQw2YT4YAYLPoMgLgbGnXToR7hICfhNRCwHBQ9LDTrYAANFwDi6zgsB/mOh4HWAJqwUpCyHyhUdBhGwSigAQAAniLYhb3IWwIAAAAASUVORK5CYII=") 16 16, auto; }
+.hobby-card--dice { cursor: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABTElEQVR42mNgGAVYgKCEOgsQRwDxbCDeTyGeDTWLhVjLTYD4OhD/pzIGmWlC0HIhSfUvIA1GFq7/J0+b+//I0ZMUYZAZILNAZkLNNsEX7GCfx6fk/f/9+89/agGQWSAzkUKCBZsDImA+p6blyI6AhQTILmwOACUWcJDRCoDMhjpgNjYHgFIsON6wuf70mQv/nz57TtASkBqQWmyhCDIb6oD9RDsAZJCnXxRYo6iM1v8du/bjtBwkB1IDUgvSg+4IshwA8g1ydgqJTMHpAJAcslqQXoodAApSmK9AuKisHqcDQHIwdSA96FFGlgNgQQvyHciCL1++4nQASA6kBqQWW1SR7QBqAao6YOPmHf9VtCzAGMSmuwNAFsPiG8QeeQ4Y8CigayIc0Gw44AXRgBfFA14Z0bM6HvAGyYA3yQa2UTrgzfJB0TEZFF2zEQcAAWaoEceJcgAAAAAASUVORK5CYII=") 16 16, auto; }
+@media (hover: none) {
+  .hobby-card--football, .hobby-card--pool,
+  .hobby-card--vocaloid, .hobby-card--dice { cursor: auto; }
+}
+
+/* ---------- 作品卡片 ---------- */
+.project-figure {
+  display: block;
+  margin: -18px -18px 14px;
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(120, 170, 255, 0.14);
+}
+.project-img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.5s ease;
+}
+.project-figure:hover .project-img { transform: scale(1.05); }
+.card-tag {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 4px 12px;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  color: #7dd3fc;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+/* ---------- 教育时间线 ---------- */
+.timeline {
+  position: relative;
+  margin-top: 18px;
+  padding-left: 24px;
+  border-left: 2px solid rgba(120, 170, 255, 0.2);
+}
+.timeline-item {
+  position: relative;
+  margin-bottom: 26px;
+  padding-right: 240px;
+}
+.timeline-item:last-child { margin-bottom: 0; }
+.timeline-item::before {
+  content: "";
+  position: absolute;
+  left: -32px;
+  top: 7px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 14px var(--c);
+}
+.timeline-date {
+  display: inline-block;
+  font-size: 0.82rem;
+  letter-spacing: 0.12em;
+  color: #7dd3fc;
+}
+.timeline-item h3 {
+  margin: 6px 0;
+  font-size: 1.02rem;
+  color: #eaf2ff;
+}
+.timeline-item p {
+  margin: 0;
+  font-size: 0.87rem;
+  color: var(--muted);
+}
+.school-logos {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.school-logo {
+  display: block;
+  height: 46px;
+  width: auto;
+  max-width: 168px;
+  object-fit: contain;
+  opacity: 0.92;
+  transition: opacity 0.25s ease, transform 0.3s ease;
+}
+.school-logo:hover { opacity: 1; transform: scale(1.06); }
+.school-logo--mark { height: 46px; width: 46px; }
+
+/* ---------- 联系方式 ---------- */
+.contact-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+.contact-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: rgba(11, 18, 34, 0.7);
+  border: 1px solid rgba(120, 170, 255, 0.14);
+}
+.contact-label {
+  font-size: 0.86rem;
+  letter-spacing: 0.08em;
+  color: #7dd3fc;
+}
+.contact-value {
+  font-size: 0.92rem;
+  color: #dbe7fb;
+  text-decoration: none;
+}
+a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
+
+/* ---------- 顶栏 ---------- */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 26px;
+  background: linear-gradient(180deg, rgba(4, 6, 13, 0.85), transparent);
+  pointer-events: none;
+}
+.topbar > * { pointer-events: auto; }
+.brand {
+  font-size: 0.98rem;
+  letter-spacing: 0.08em;
+  color: #eaf2ff;
+  text-decoration: none;
+}
+.brand span { color: var(--muted); font-size: 0.82rem; }
+.topnav {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.topnav button {
+  padding: 7px 15px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #b9cae8;
+  font-family: inherit;
+  font-size: 0.86rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: color 0.3s ease, background 0.3s ease, border-color 0.3s ease,
+              box-shadow 0.3s ease;
+}
+.topnav button:hover { color: #fff; background: rgba(120, 170, 255, 0.1); }
+.topnav button.is-active {
+  color: #04121c;
+  font-weight: 600;
+  background: linear-gradient(120deg, #7dd3fc, #a855f7);
+  box-shadow: 0 0 22px rgba(120, 170, 255, 0.45);
+}
+
+/* ---------- 底部提示 ---------- */
+.hint {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  z-index: 20;
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  color: rgba(147, 166, 196, 0.85);
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.hint::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 9px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 10px #38bdf8;
+  animation: hintPulse 1.9s ease-in-out infinite;
+  vertical-align: middle;
+}
+@keyframes hintPulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* ============================================================
+   响应式：窄屏改为「节点标签横排 + 面板常规流式」，
+   避免绝对定位在小屏上互相遮挡
+   ============================================================ */
+@media (max-width: 860px) {
+  body { overflow: auto; }
+  /* 移动端以节点为导航，隐藏顶部按钮组，避免与姓名挤成两行 */
+  .topnav { display: none; }
+  .brand { font-size: 0.92rem; white-space: nowrap; }
+  .topbar { padding: 12px 18px; }
+  .stage { position: relative; inset: auto; padding: 72px 16px 92px; }
+  .links { display: none; }
+  .nodes {
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px 14px;
+    margin-bottom: 18px;
+  }
+  .node {
+    position: static;
+    transform: none !important;
+    width: auto;
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .node-neuron { width: 88px; height: 88px; }
+  .node:focus-visible .node-neuron { filter: drop-shadow(0 0 6px var(--c)) drop-shadow(0 0 16px var(--c)); }
+  .node-name {
+    position: static;
+    transform: none;
+    font-size: 0.84rem;
+    padding: 4px 11px;
+  }
+  .node.is-active .node-name { opacity: 1; }
+  .node.is-active .node-neuron { transform: none; }
+
+  /* 窄屏的三段式：节点原地放大（transform 不影响流式排版），
+     其余节点变淡但仍可点，用来切换聚焦对象 */
+  html[data-phase="focus"] .node.is-active,
+  html[data-phase="detail"] .node.is-active {
+    transform: scale(1.12) !important;
+  }
+  html[data-phase="focus"] .node:not(.is-active) {
+    opacity: 0.42;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .panels { position: static; inset: auto; pointer-events: auto; }
+  .panel {
+    position: static;
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    transform: none;
+    opacity: 0;
+    visibility: hidden;
+    display: none;
+  }
+  .panel.is-active {
+    display: block;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    animation: panelIn 0.5s ease both;
+  }
+  @keyframes panelIn {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: none; }
+  }
+  .timeline-item { padding-right: 0; }
+  .school-logos {
+    position: static;
+    transform: none;
+    margin-top: 12px;
+    gap: 14px;
+  }
+  .school-logo { height: 38px; max-width: 128px; }
+  .school-logo--mark { height: 38px; width: 38px; }
+  .deck--4, .deck--2 { grid-template-columns: 1fr; }
+  .hint {
+    position: static;
+    transform: none;
+    margin: 22px auto 0;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 1080px) and (min-width: 861px) {
+  .deck--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .panel { padding-left: 22px; padding-right: 22px; }
+  .timeline-item { padding-right: 172px; }
+  .school-logo { height: 38px; max-width: 124px; }
+  .school-logo--mark { height: 38px; width: 38px; }
+  .school-logos { gap: 13px; }
+  .hero-name { font-size: 1.9rem; }
+}
+
+/* 矮窗口：等比例缩小节点，避免与面板上下相撞 */
+@media (max-height: 680px) and (min-width: 861px) {
+  .panel { top: 25%; max-height: 48%; }
+  .node { width: 150px; gap: 8px; }
+  .node-neuron {
+    width: clamp(60px, calc((25vh - 86px) / 1.09), 120px);
+    height: clamp(60px, calc((25vh - 86px) / 1.09), 120px);
+  }
+  .node-name { font-size: 0.86rem; padding: 4px 11px; }
+  .hero-name { font-size: 1.8rem; }
+  .avatar-ring { width: 108px; height: 108px; }
+}
+
+/* 尊重系统「减少动态效果」 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .node { transition: opacity 0.3s ease; }
+  .node-neuron { transition: opacity 0.3s ease; }
+  .node-neuron .spark { display: none; }
+  .node-neuron .tip { animation: none; opacity: 0.8; }
+  .panel { transition: opacity 0.3s ease; }
+  .video-text__media { display: none; }
+  .video-text.is-video .video-text__label {
+    color: inherit;
+    -webkit-text-fill-color: currentColor;
+  }
+  .morphing.is-ready .morph-item {
+    filter: none;
+    transform: none;
+    transition: opacity 0.3s ease;
+  }
+}
+</style>
+</head>
+<body>
+
+<canvas id="fx" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+
+<!-- 神经元节点共用的渐变定义（供每个节点 SVG 引用） -->
+<svg class="neuron-defs" aria-hidden="true" focusable="false" width="0" height="0">
+  <defs>
+    <radialGradient id="neuronHi" cx="36%" cy="30%" r="74%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="32%" stop-color="#ffffff" stop-opacity="0.5"/>
+      <stop offset="66%" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="neuronRim" cx="50%" cy="46%" r="55%">
+      <stop offset="58%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.5"/>
+    </radialGradient>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#" data-goto="hero">王俊洋 <span>· David Wang</span></a>
+  <nav class="topnav" id="topnav" aria-label="分区导航">
+    <button type="button" data-goto="about">简介</button>
+    <button type="button" data-goto="hobbies">爱好</button>
+    <button type="button" data-goto="projects">作品</button>
+    <button type="button" data-goto="education">教育</button>
+    <button type="button" data-goto="contact">联系</button>
+  </nav>
+</header>
+
+<main class="stage" id="stage">
+  <svg class="links" id="links" aria-hidden="true"></svg>
+
+  <div class="nodes" id="nodes">
+    <button type="button" class="node" data-id="hero" style="--c:#38bdf8" aria-pressed="false">
+      <span class="node-neuron" aria-hidden="true"></span>
+      <span class="node-name">关于我</span>
+    </button>
+
+    <button type="button" class="node" data-id="about" style="--c:#a855f7" aria-pressed="false">
+      <span class="node-neuron" aria-hidden="true"></span>
+      <span class="node-name">简介</span>
+    </button>
+
+    <button type="button" class="node" data-id="hobbies" style="--c:#f472b6" aria-pressed="false">
+      <span class="node-neuron" aria-hidden="true"></span>
+      <span class="node-name">爱好</span>
+    </button>
+
+    <button type="button" class="node" data-id="projects" style="--c:#34d399" aria-pressed="false">
+      <span class="node-neuron" aria-hidden="true"></span>
+      <span class="node-name">作品</span>
+    </button>
+
+    <button type="button" class="node" data-id="education" style="--c:#fbbf24" aria-pressed="false">
+      <span class="node-neuron" aria-hidden="true"></span>
+      <span class="node-name">教育</span>
+    </button>
+
+    <button type="button" class="node" data-id="contact" style="--c:#60a5fa" aria-pressed="false">
+      <span class="node-neuron" aria-hidden="true"></span>
+      <span class="node-name">联系</span>
+    </button>
+  </div>
+
+  <div class="panels" id="panels">
+
+    <!-- ============ 关于我 ============ -->
+    <section class="panel" data-id="hero" style="--c:#38bdf8" aria-hidden="true">
+      <div class="hero-wrap">
+        <div class="avatar-ring"><img src="./assets/avatar.png" alt="王俊洋头像" /></div>
+        <h1 class="hero-name">
+          <span class="video-text" data-video-text><span class="video-text__label">王俊洋</span><span class="video-text__media" aria-hidden="true"><video autoplay muted loop playsinline preload="auto" src="./assets/starfield.mp4"></video></span></span>
+          <span class="hero-name-en">David Wang</span>
+        </h1>
+        <p class="hero-sub">智能医学工程 · 天津大学香港理工大学深圳未来技术学院</p>
+        <div class="morphing morphing--tagline" data-morph-interval="3800">
+          <p class="tagline morph-item">恋旧林的羁鸟，思故渊的池鱼</p>
+          <p class="tagline-en morph-item">A soul seeker.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 个人简介 ============ -->
+    <section class="panel" data-id="about" style="--c:#a855f7" aria-hidden="true">
+      <div class="panel-head">
+        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">个人简介</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield.mp4"></video></span></span></h2>
+        <span class="panel-en">About Me</span>
+      </div>
+      <p>你好，我是王俊洋 David Wang。恋旧林的羁鸟，思故渊的池鱼——我喜欢在熟悉与未知之间探索，正在学习智能医学工程，把技术用于生命健康是我努力的方向。</p>
+      <p class="intro-en">Hi, I'm David Wang — a Biomedical Engineering student curious about technology and life science.</p>
+      <ul class="info-list">
+        <li><strong>姓名 · Name</strong>王俊洋 · David Wang</li>
+        <li><strong>学校 · School</strong>天津大学香港理工大学深圳未来技术学院</li>
+        <li><strong>专业 · Major</strong>智能医学工程 · Biomedical Engineering</li>
+        <li><strong>年级 · Grade</strong>大一 · Undergraduate Freshman</li>
+      </ul>
+    </section>
+
+    <!-- ============ 爱好 ============ -->
+    <section class="panel" data-id="hobbies" style="--c:#f472b6" aria-hidden="true">
+      <div class="panel-head">
+        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">我的爱好</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield.mp4"></video></span></span></h2>
+        <span class="panel-en">My Hobbies</span>
+      </div>
+      <p>闲暇时喜欢运动与音乐，也爱和朋友一起玩桌游。</p>
+      <div class="deck deck--4">
+        <div class="card hobby-card hobby-card--football">
+          <h3>足球 ⚽</h3>
+          <p>在球场上奔跑，享受团队配合与进球的快乐。</p>
+        </div>
+        <div class="card hobby-card hobby-card--pool">
+          <h3>台球 🎱</h3>
+          <p>专注、节奏与手感的较量，一杆一杆都让人专注。</p>
+        </div>
+        <div class="card hobby-card hobby-card--vocaloid">
+          <h3>VOCALOID 🎵</h3>
+          <p>喜欢虚拟歌手带来的独特声线与旋律世界。</p>
+        </div>
+        <div class="card hobby-card hobby-card--dice">
+          <h3>桌游 🎲</h3>
+          <p>和朋友面对面，在规则与策略里碰撞出笑点。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 作品 ============ -->
+    <section class="panel" data-id="projects" style="--c:#34d399" aria-hidden="true">
+      <div class="panel-head">
+        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">项目 · 作品</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield.mp4"></video></span></span></h2>
+        <span class="panel-en">Projects</span>
+      </div>
+      <p>这里展示我的项目与作品。</p>
+      <div class="deck deck--2">
+        <div class="card">
+          <a class="project-figure" href="./assets/award-fruit-wine.jpg" target="_blank" rel="noopener">
+            <img class="project-img" src="./assets/award-fruit-wine.jpg" alt="大连市第八中学科技艺术文化节生物比赛一等奖证书" />
+          </a>
+          <h3>生物比赛 · 果酒制作 · 一等奖 🏆</h3>
+          <p>高中参加校科技艺术文化节生物比赛（果酒制作），荣获一等奖。点击图片可放大。</p>
+          <span class="card-tag">2025 · 一等奖</span>
+        </div>
+        <div class="card">
+          <h3>项目 · 待补充</h3>
+          <p>这里将展示我的更多作品与思考，敬请期待。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 教育经历 ============ -->
+    <section class="panel" data-id="education" style="--c:#fbbf24" aria-hidden="true">
+      <div class="panel-head">
+        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">教育经历</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield.mp4"></video></span></span></h2>
+        <span class="panel-en">Education</span>
+      </div>
+      <div class="timeline">
+        <div class="timeline-item">
+          <span class="timeline-date">2026 - 至今</span>
+          <h3>天津大学香港理工大学深圳未来技术学院 · 智能医学工程</h3>
+          <p>目前本科在读（大一），关注生物医学与人工智能的交叉应用。</p>
+          <div class="school-logos" aria-label="天津大学 / 香港理工大学">
+            <img class="school-logo" src="./assets/school-logo-tju.png" alt="天津大学" loading="lazy">
+            <img class="school-logo school-logo--mark" src="./assets/school-logo-polyu.png" alt="香港理工大学" loading="lazy">
+          </div>
+        </div>
+        <div class="timeline-item">
+          <span class="timeline-date">2023 - 2026</span>
+          <h3>大连市第八中学</h3>
+          <p>高中阶段，在此打下学科基础，养成对学习与探索的兴趣。</p>
+          <div class="school-logos" aria-label="大连市第八中学">
+            <img class="school-logo" src="./assets/school-logo-dl8z.png" alt="大连市第八中学" loading="lazy">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 联系方式 ============ -->
+    <section class="panel" data-id="contact" style="--c:#60a5fa" aria-hidden="true">
+      <div class="panel-head">
+        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">联系方式</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield.mp4"></video></span></span></h2>
+        <span class="panel-en">Contact</span>
+      </div>
+      <p>欢迎通过以下方式联系我。邮箱已做混淆处理，以防被爬虫抓取。</p>
+      <div class="contact-list">
+        <div class="contact-item">
+          <span class="contact-label">GitHub</span>
+          <a class="contact-value" href="https://github.com/stardust-david" target="_blank" rel="noopener">github.com/stardust-david</a>
+        </div>
+        <div class="contact-item">
+          <span class="contact-label">邮箱 · Email</span>
+          <span class="contact-value">3026445011 [AT] tju [DOT] edu [DOT] cn</span>
+        </div>
+        <div class="contact-item">
+          <span class="contact-label">社交 · Social</span>
+          <span class="contact-value">[@你的账号 / 待补充]</span>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<p class="hint" id="hint">点击任意名称，进入部署视角</p>
+
+<script>
+/* ============================================================
+   1) 神经网络背景：神经元脉络 + 漂浮粒子 + 微弱连线
+   ============================================================ */
+(function () {
+  var canvas = document.getElementById('fx');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var W = 0, H = 0, DPR = 1, CX = 0, CY = 0;
+
+  // ---- 伪 3D 相机（手写透视投影，不依赖任何外部库） ----
+  var FOV = 1600;          // 焦距：越大透视越平缓
+  var DEPTH = 640;         // 世界坐标 z ∈ [-DEPTH, DEPTH]
+  var MAX_YAW = 0.38;      // 鼠标左右 → 偏航角上限（弧度）
+  var MAX_PITCH = 0.26;    // 鼠标上下 → 俯仰角上限
+  var cam = { yaw: 0, pitch: 0, tYaw: 0, tPitch: 0 };
+  var cosY = 1, sinY = 0, cosP = 1, sinP = 0;
+
+  var neurons = [], dots = [];
+  var PALETTE = [
+    [56, 189, 248], [168, 85, 247], [244, 114, 182],
+    [45, 212, 191], [96, 165, 250], [226, 232, 240]
+  ];
+
+  function rgba(c, a) {
+    return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a.toFixed(3) + ')';
+  }
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+
+  /* 透视投影：先绕 Y 轴偏航、再绕 X 轴俯仰，最后按 1/z 缩放 */
+  function project(x, y, z) {
+    var x1 = x * cosY - z * sinY;
+    var z1 = x * sinY + z * cosY;
+    var y1 = y * cosP - z1 * sinP;
+    var z2 = y * sinP + z1 * cosP;
+    var d = FOV + z2;
+    if (d < 240) d = 240;            // 近平面，避免除零与爆屏
+    var s = FOV / d;
+    return { x: CX + x1 * s, y: CY + y1 * s, s: s, z: z2 };
+  }
+
+  /* 深度雾：越远越淡 */
+  function fog(z) {
+    var t = (z + DEPTH * 1.3) / (DEPTH * 2.6);
+    if (t < 0) t = 0; else if (t > 1) t = 1;
+    return 1 - t * 0.72;
+  }
+
+  /* 随机单位向量 */
+  function randDir() {
+    var a = rnd(0, Math.PI * 2), u = rnd(-1, 1), r = Math.sqrt(1 - u * u);
+    return { x: Math.cos(a) * r, y: u, z: Math.sin(a) * r };
+  }
+
+  /* 在三维空间里建立「最近邻」图：每帧只画固定连线，避免闪烁 */
+  function linkNear(list, maxDist, per) {
+    var md2 = maxDist * maxDist;
+    for (var i = 0; i < list.length; i++) {
+      var cand = [];
+      for (var j = 0; j < list.length; j++) {
+        if (i === j) continue;
+        var dx = list[i].x - list[j].x, dy = list[i].y - list[j].y, dz = list[i].z - list[j].z;
+        var d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 < md2) cand.push({ j: j, d2: d2 });
+      }
+      cand.sort(function (a, b) { return a.d2 - b.d2; });
+      list[i].nb = cand.slice(0, per).map(function (o) { return o.j; });
+    }
+  }
+
+  function build() {
+    neurons = [];
+    dots = [];
+    CX = W / 2; CY = H / 2;
+    var spread = Math.min(W, H);
+
+    var hubCount = W < 900 ? 4 : 7;
+    for (var i = 0; i < hubCount; i++) {
+      var c = PALETTE[i % PALETTE.length];
+      var n = {
+        x: rnd(-0.36, 0.36) * W,
+        y: rnd(-0.40, 0.40) * H,
+        z: rnd(-0.92, 0.92) * DEPTH,
+        r: rnd(2.6, 5.2),
+        c: c,
+        ph: rnd(0, Math.PI * 2),
+        spd: rnd(0.1, 0.26),
+        tend: [],
+        sat: [],
+        nb: []
+      };
+
+      // 树突：三维方向，控制点取「中点 + 与方向正交的随机偏移」形成弯曲
+      var tn = 7 + Math.floor(Math.random() * 4);
+      for (var j = 0; j < tn; j++) {
+        var dir = randDir();
+        var len = rnd(0.09, 0.2) * spread * 1.6;
+        var ex = n.x + dir.x * len, ey = n.y + dir.y * len, ez = n.z + dir.z * len;
+
+        var px = rnd(-1, 1), py = rnd(-1, 1), pz = rnd(-1, 1);
+        var dp = px * dir.x + py * dir.y + pz * dir.z;
+        px -= dp * dir.x; py -= dp * dir.y; pz -= dp * dir.z;
+        var pl = Math.sqrt(px * px + py * py + pz * pz) || 1;
+        var bend = rnd(-0.5, 0.5) * len * 0.42;
+
+        n.tend.push({
+          x: (n.x + ex) / 2 + px / pl * bend,
+          y: (n.y + ey) / 2 + py / pl * bend,
+          z: (n.z + ez) / 2 + pz / pl * bend,
+          ex: ex, ey: ey, ez: ez,
+          w: rnd(0.5, 1.5),
+          ph: rnd(0, 1),
+          sp: rnd(0.05, 0.16)
+        });
+      }
+
+      // 卫星节点：绕胞体的小网络
+      var sn = 5 + Math.floor(Math.random() * 4);
+      for (var k = 0; k < sn; k++) {
+        var sd = randDir();
+        var slen = rnd(0.04, 0.13) * spread;
+        n.sat.push({
+          x: n.x + sd.x * slen,
+          y: n.y + sd.y * slen,
+          z: n.z + sd.z * slen,
+          r: rnd(0.9, 2.0),
+          ph: rnd(0, 1)
+        });
+      }
+      neurons.push(n);
+    }
+
+    var dotCount = Math.round(Math.min(90, Math.max(28, (W * H) / 26000)));
+    for (var q = 0; q < dotCount; q++) {
+      dots.push({
+        x: rnd(-0.55, 0.55) * W,
+        y: rnd(-0.55, 0.55) * H,
+        z: rnd(-1, 1) * DEPTH,
+        vx: rnd(-0.16, 0.16),
+        vy: rnd(-0.16, 0.16),
+        vz: rnd(-0.16, 0.16),
+        r: rnd(0.7, 2.1),
+        c: PALETTE[Math.floor(Math.random() * PALETTE.length)],
+        a: rnd(0.25, 0.85),
+        nb: []
+      });
+    }
+
+    linkNear(neurons, spread * 0.95, 2);
+    linkNear(dots, spread * 0.17, 2);
+  }
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.max(1, Math.round(W * DPR));
+    canvas.height = Math.max(1, Math.round(H * DPR));
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    build();
+  }
+
+  /* 鼠标 → 目标视角（-1..1 归一化后映射到角度上限） */
+  function onMove(e) {
+    var nx = (e.clientX / W) * 2 - 1;
+    var ny = (e.clientY / H) * 2 - 1;
+    if (nx < -1) nx = -1; else if (nx > 1) nx = 1;
+    if (ny < -1) ny = -1; else if (ny > 1) ny = 1;
+    // 鼠标右移 → 相机右转（近处向左滑动）；下移 → 相机俯视
+    cam.tYaw = -nx * MAX_YAW;
+    cam.tPitch = ny * MAX_PITCH;
+  }
+
+  /* 平滑追随鼠标，并叠加一点自动漂移，让画面始终「活着」 */
+  function update(dt, t) {
+    var k = 1 - Math.exp(-dt * 4.2);
+    cam.yaw += (cam.tYaw - cam.yaw) * k;
+    cam.pitch += (cam.tPitch - cam.pitch) * k;
+
+    var yaw = cam.yaw + Math.sin(t * 0.11) * 0.045;
+    var pitch = cam.pitch + Math.sin(t * 0.083 + 1.3) * 0.03;
+    cosY = Math.cos(yaw); sinY = Math.sin(yaw);
+    cosP = Math.cos(pitch); sinP = Math.sin(pitch);
+
+    for (var i = 0; i < dots.length; i++) {
+      var p = dots[i];
+      p.x += p.vx; p.y += p.vy; p.z += p.vz;
+      if (p.z < -DEPTH) p.z = DEPTH; else if (p.z > DEPTH) p.z = -DEPTH;
+      if (p.x < -0.7 * W) p.x = 0.7 * W; else if (p.x > 0.7 * W) p.x = -0.7 * W;
+      if (p.y < -0.7 * H) p.y = 0.7 * H; else if (p.y > 0.7 * H) p.y = -0.7 * H;
+    }
+  }
+
+  /* 神经元之间的三维连线 */
+  function drawHubLinks() {
+    for (var i = 0; i < neurons.length; i++) {
+      var a = neurons[i];
+      var pa = project(a.x, a.y, a.z);
+      for (var k = 0; k < a.nb.length; k++) {
+        var j = a.nb[k];
+        if (j <= i) continue;
+        var b = neurons[j];
+        var pb = project(b.x, b.y, b.z);
+        var f = fog((pa.z + pb.z) / 2);
+        ctx.strokeStyle = rgba([130, 175, 255], 0.05 + 0.05 * f);
+        ctx.lineWidth = Math.max(0.4, 0.7 * (pa.s + pb.s) / 2);
+        ctx.beginPath();
+        ctx.moveTo(pa.x, pa.y);
+        var mx = (pa.x + pb.x) / 2, my = (pa.y + pb.y) / 2;
+        ctx.quadraticCurveTo(mx + (pb.y - pa.y) * 0.06, my - (pb.x - pa.x) * 0.06, pb.x, pb.y);
+        ctx.stroke();
+      }
+    }
+  }
+
+  /* 粒子之间若隐若现的连线（近邻图，已按深度排序在底层绘制） */
+  function drawDotLinks() {
+    for (var i = 0; i < dots.length; i++) {
+      var a = dots[i];
+      if (!a.nb.length) continue;
+      var pa = project(a.x, a.y, a.z);
+      for (var k = 0; k < a.nb.length; k++) {
+        var j = a.nb[k];
+        if (j <= i) continue;
+        var b = dots[j];
+        var pb = project(b.x, b.y, b.z);
+        var f = fog((pa.z + pb.z) / 2);
+        ctx.strokeStyle = rgba([120, 170, 255], 0.14 * f);
+        ctx.lineWidth = 0.7;
+        ctx.beginPath();
+        ctx.moveTo(pa.x, pa.y);
+        ctx.lineTo(pb.x, pb.y);
+        ctx.stroke();
+      }
+    }
+  }
+
+  /* 单个神经元：树突 + 轴突脉冲 + 卫星节点 + 胞体光晕 */
+  function drawHub(h, p, t) {
+    var f = fog(p.z);
+    var pulse = 0.5 + 0.5 * Math.sin(t * h.spd * 2 + h.ph);
+    var steps = 10;
+
+    for (var i = 0; i < h.tend.length; i++) {
+      var td = h.tend[i];
+      var cp = project(td.x, td.y, td.z);     // 控制点
+      var ep = project(td.ex, td.ey, td.ez);  // 终点
+
+      // 世界空间二次贝塞尔 → 屏幕折线（透视正确）
+      ctx.beginPath();
+      for (var s = 0; s <= steps; s++) {
+        var tt = s / steps, mt = 1 - tt;
+        var sx = mt * mt * p.x + 2 * mt * tt * cp.x + tt * tt * ep.x;
+        var sy = mt * mt * p.y + 2 * mt * tt * cp.y + tt * tt * ep.y;
+        if (s === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+      }
+      ctx.strokeStyle = rgba(h.c, (0.1 + 0.09 * pulse) * f);
+      ctx.lineWidth = Math.max(0.4, td.w * p.s);
+      ctx.stroke();
+
+      // 沿树突流动的轴突脉冲
+      var at = (t * td.sp + td.ph) % 1, mt2 = 1 - at;
+      var qx = mt2 * mt2 * p.x + 2 * mt2 * at * cp.x + at * at * ep.x;
+      var qy = mt2 * mt2 * p.y + 2 * mt2 * at * cp.y + at * at * ep.y;
+      var pr = Math.max(0.8, 1.4 * p.s) * 7;
+      var g = ctx.createRadialGradient(qx, qy, 0, qx, qy, pr);
+      g.addColorStop(0, rgba(h.c, 0.8 * f));
+      g.addColorStop(1, rgba(h.c, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(qx, qy, pr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 卫星节点与它们的连线
+    for (var k = 0; k < h.sat.length; k++) {
+      var st = h.sat[k];
+      var sp = project(st.x, st.y, st.z);
+
+      ctx.strokeStyle = rgba(h.c, 0.12 * f);
+      ctx.lineWidth = Math.max(0.4, 0.8 * (p.s + sp.s) / 2);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(sp.x, sp.y);
+      ctx.stroke();
+
+      var sw = 0.5 + 0.5 * Math.sin(t * 1.6 + st.ph * 6.283);
+      var sr = Math.max(0.8, st.r * sp.s) * 6;
+      var sg = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, sr);
+      sg.addColorStop(0, rgba(h.c, (0.4 + 0.4 * sw) * f));
+      sg.addColorStop(1, rgba(h.c, 0));
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, sr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 胞体光晕 + 亮点
+    var rr = Math.max(7, h.r * p.s * (10 + 3 * pulse));
+    var hg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rr);
+    hg.addColorStop(0, rgba(h.c, 0.6 * f));
+    hg.addColorStop(0.28, rgba(h.c, 0.18 * f));
+    hg.addColorStop(1, rgba(h.c, 0));
+    ctx.fillStyle = hg;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rr, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = rgba([255, 255, 255], 0.78 * f);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, Math.max(0.9, h.r * p.s * 0.5), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /* 单个漂浮粒子 */
+  function drawDot(d, p) {
+    var f = fog(p.z);
+    var rr = Math.max(2, d.r * p.s * 6);
+    var gg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rr);
+    gg.addColorStop(0, rgba(d.c, d.a * f));
+    gg.addColorStop(1, rgba(d.c, 0));
+    ctx.fillStyle = gg;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function draw(t) {
+    ctx.clearRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter';
+
+    // 收集全部绘制对象，按深度从远到近排序（远者先画）
+    var items = [], i;
+    for (i = 0; i < neurons.length; i++) {
+      var hp = project(neurons[i].x, neurons[i].y, neurons[i].z);
+      items.push({ z: hp.z, hub: neurons[i], p: hp });
+    }
+    for (i = 0; i < dots.length; i++) {
+      var dp = project(dots[i].x, dots[i].y, dots[i].z);
+      items.push({ z: dp.z, dot: dots[i], p: dp });
+    }
+    items.sort(function (a, b) { return b.z - a.z; });
+
+    // 底层的连线
+    drawHubLinks();
+    drawDotLinks();
+
+    for (i = 0; i < items.length; i++) {
+      var it = items[i];
+      if (it.hub) drawHub(it.hub, it.p, t);
+      else drawDot(it.dot, it.p);
+    }
+
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  resize();
+  window.addEventListener('resize', function () {
+    clearTimeout(resize._t);
+    resize._t = setTimeout(function () { resize(); layout(); }, 160);
+  });
+
+  if (reduce) {
+    // 静态一帧：给一个固定小角度，避免完全正对显得扁平
+    cam.yaw = 0.2; cam.pitch = -0.12;
+    cosY = Math.cos(cam.yaw); sinY = Math.sin(cam.yaw);
+    cosP = Math.cos(cam.pitch); sinP = Math.sin(cam.pitch);
+    draw(0);
+  } else {
+    window.addEventListener('pointermove', onMove, { passive: true });
+    var start = performance.now(), last = start;
+    (function loop(now) {
+      var dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      var t = (now - start) / 1000;
+      update(dt, t);
+      draw(t);
+      requestAnimationFrame(loop);
+    })(start);
+  }
+})();
+
+/* ============================================================
+   2) 节点导航：点击名字 → 节点飞向屏幕中心 + 展开内容面板
+   ============================================================ */
+var SECTIONS = [
+  { id: 'hero',      name: '关于我', en: 'Profile'   },
+  { id: 'about',     name: '简介',   en: 'About'     },
+  { id: 'hobbies',   name: '爱好',   en: 'Hobbies'   },
+  { id: 'projects',  name: '作品',   en: 'Projects'  },
+  { id: 'education', name: '教育',   en: 'Education' },
+  { id: 'contact',   name: '联系',   en: 'Contact'   }
+];
+
+/* 5 个停靠位：左上 / 左下 / 右上 / 右下 / 正下。
+   当前分区占据顶部「核心位」，其余 5 个分区依次填充这 5 个位置，
+   因此无论选中的是哪一节，都不会有两个节点抢占同一点。
+   sx=-1 左 / 1 右　sy<0 上 / >0 下 */
+var DOCK_SLOTS = [
+  { sx: -1, sy: -0.65 },
+  { sx: -1, sy:  0.65 },
+  { sx:  1, sy: -0.65 },
+  { sx:  1, sy:  0.65 },
+  { sx:  0, sy:  1.00 }
+];
+
+var MOBILE_MAX = 860;         // 与该宽度以下的移动布局保持一致
+var PANEL_MAX_W = 760;        // 与 CSS 中 .panel 的 width 保持一致
+
+/* 顶栏底边：节点不允许压到导航条 */
+function topbarBottom() {
+  var tb = document.querySelector('.topbar');
+  return tb ? tb.getBoundingClientRect().bottom : 60;
+}
+
+/* 核心位（当前分区所在位置）：落在「顶栏」与「面板上沿」之间的空隙正中。
+   神经元的尺寸由 CSS 按视口高度给出（见 .node-neuron 的 clamp），这里读出实际高度，
+   并按 .node.is-active 的 scale(1.09) 折算包围盒，保证上下都不重叠。 */
+function activePos() {
+  var panelTop = H * (H < 680 ? 0.25 : 0.27);   // 与 CSS 中 .panel 的 top 保持一致
+  var el = nodeEls[activeId];
+  var box = el && el.querySelector('.node-neuron');
+  var half = ((box ? box.offsetHeight : 140) * 1.09) / 2;
+  var topB = topbarBottom();
+  var margin = 12;
+  var y = Math.min((topB + panelTop) / 2, panelTop - half - margin);
+  y = Math.max(y, topB + half + margin);
+  return { x: W * 0.5, y: y };
+}
+
+/* 把 5 个停靠位依次分配给「非当前」分区 */
+function assignSlots() {
+  var i = 0;
+  SECTIONS.forEach(function (s) {
+    if (s.id === activeId) { s.slot = null; return; }
+    s.slot = DOCK_SLOTS[i % DOCK_SLOTS.length];
+    i++;
+  });
+}
+
+/* 某个分区的停靠坐标（视口坐标） */
+function dockPos(s) {
+  var slot = s.slot || DOCK_SLOTS[0];
+  var panelHalf = Math.min(PANEL_MAX_W, W * 0.56) / 2;
+  var gap = Math.min(140, Math.max(96, W * 0.11));
+  var spread = H < 680 ? 0.36 : 0.34;
+  return {
+    x: W * 0.5 + slot.sx * (panelHalf + gap),
+    y: H * 0.5 + slot.sy * spread * H
+  };
+}
+
+/* 节点横向半径（用于连线裁剪） */
+function nodeHalfW() { return H < 680 ? 58 : 74; }
+
+var stage = document.getElementById('stage');
+var nodesWrap = document.getElementById('nodes');
+var panelsWrap = document.getElementById('panels');
+var linksSvg = document.getElementById('links');
+var topnav = document.getElementById('topnav');
+var hint = document.getElementById('hint');
+
+var nodeEls = {};
+var panelEls = {};
+Array.prototype.forEach.call(document.querySelectorAll('.node'), function (el) {
+  nodeEls[el.getAttribute('data-id')] = el;
+});
+Array.prototype.forEach.call(document.querySelectorAll('.panel'), function (el) {
+  panelEls[el.getAttribute('data-id')] = el;
+});
+
+var activeId = null;       // 概览态没有选中项；聚焦/详情态为当前分区 id
+var phase = 'overview';    // 'overview' | 'focus' | 'detail'
+var W = 0, H = 0;
+
+function isMobile() { return window.innerWidth <= MOBILE_MAX; }
+
+/* 把节点摆到视口坐标 p（换算成相对舞台中心的 --dx / --dy） */
+function placeNode(el, p) {
+  if (!el || !p) return;
+  el.style.setProperty('--dx', (p.x - W * 0.5) + 'px');
+  el.style.setProperty('--dy', (p.y - H * 0.5) + 'px');
+}
+
+/* 神经元未缩放时的实测高度（布局尺寸，不受 transform 影响） */
+function neuronHeight() {
+  var el = nodeEls[SECTIONS[0].id];
+  var box = el && el.querySelector('.node-neuron');
+  return box && box.offsetHeight ? box.offsetHeight : 140;
+}
+
+/* 概览位：6 个分区均布在一个椭圆环上，中央刻意留空给「聚焦」用。
+   环的半径同时受顶栏、底部提示和左右边界约束，保证任何视口都不越界。 */
+function overviewPos(i) {
+  var nH = neuronHeight();
+  var cx = W * 0.5;
+  var cy = H * 0.5;
+  var topB = topbarBottom() + 18;                 // 不压顶栏
+  var botL = H - 104;                             // 不压底部提示
+  var maxRy = Math.min(cy - topB - nH / 2, botL - cy - nH / 2 - 40);
+  var ry = Math.max(108, Math.min(H * 0.3, maxRy));
+  var rx = Math.max(132, Math.min(W * 0.34, W * 0.5 - 84 - 44));
+  var a = (-90 + i * 60) * Math.PI / 180;         // 从正上方起，每 60° 一个
+  return { x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry };
+}
+
+/* 聚焦位：屏幕中央略偏上，给下方放大的名称留出空间 */
+function focusPos() { return { x: W * 0.5, y: H * 0.44 }; }
+
+/* 计算并写入每个节点的位移 */
+function layout() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+
+  // 窄屏是流式排版：清掉位移，放大由 CSS 的 data-phase 规则负责
+  if (isMobile()) {
+    Array.prototype.forEach.call(document.querySelectorAll('.node'), function (el) {
+      el.style.removeProperty('--dx');
+      el.style.removeProperty('--dy');
+    });
+    drawLinks();
+    return;
+  }
+
+  // 概览态：全部节点停在环上，谁也不占中央
+  if (phase === 'overview') {
+    SECTIONS.forEach(function (s, i) { placeNode(nodeEls[s.id], overviewPos(i)); });
+    drawLinks();
+    return;
+  }
+
+  // 聚焦态：被选中的飞到中央放大，其余留在原位淡出
+  if (phase === 'focus') {
+    SECTIONS.forEach(function (s, i) {
+      placeNode(nodeEls[s.id], s.id === activeId ? focusPos() : overviewPos(i));
+    });
+    drawLinks();
+    return;
+  }
+
+  // 详情态：被选中的贴到面板上沿，其余停靠四周
+  assignSlots();
+  SECTIONS.forEach(function (s) {
+    placeNode(nodeEls[s.id], s.id === activeId ? activePos() : dockPos(s));
+  });
+  drawLinks();
+}
+
+/* 从中心节点向每个外围节点画发光连线 */
+function drawLinks() {
+  if (!linksSvg) return;
+  linksSvg.innerHTML = '';
+  // 连线只在详情态出现：概览/聚焦时中央没有「核心位」，画出来是散的
+  if (isMobile() || phase !== 'detail' || !activeId) {
+    linksSvg.style.opacity = '0';
+    return;
+  }
+  linksSvg.style.opacity = '1';
+  W = window.innerWidth;
+  H = window.innerHeight;
+
+  var ap = activePos();
+  var cx = ap.x;
+  var cy = ap.y;
+  linksSvg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+
+  SECTIONS.forEach(function (s) {
+    if (s.id === activeId) return;        // 中心节点自身不画线
+    var pos = dockPos(s);                 // 与 layout() 保持一致
+    var nx = pos.x, ny = pos.y;
+
+    var dx = nx - cx, dy = ny - cy;
+    var len = Math.sqrt(dx * dx + dy * dy) || 1;
+    var ux = dx / len, uy = dy / len;
+    var startPad = 46, endPad = nodeHalfW() + 6;
+    if (len <= startPad + endPad + 4) return;
+
+    var x1 = cx + ux * startPad, y1 = cy + uy * startPad;
+    var x2 = nx - ux * endPad,   y2 = ny - uy * endPad;
+
+    var el = panelEls[s.id];
+    var color = (el && el.style.getPropertyValue('--c')) || '#38bdf8';
+    color = color.trim() || '#38bdf8';
+
+    var glow = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    glow.setAttribute('x1', x1); glow.setAttribute('y1', y1);
+    glow.setAttribute('x2', x2); glow.setAttribute('y2', y2);
+    glow.setAttribute('stroke', color);
+    glow.setAttribute('stroke-width', '7');
+    glow.setAttribute('opacity', '0.12');
+    glow.setAttribute('class', 'link-glow');
+    linksSvg.appendChild(glow);
+
+    var core = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    core.setAttribute('x1', x1); core.setAttribute('y1', y1);
+    core.setAttribute('x2', x2); core.setAttribute('y2', y2);
+    core.setAttribute('stroke', color);
+    core.setAttribute('stroke-width', '1.5');
+    core.setAttribute('opacity', '0.55');
+    core.setAttribute('class', 'link-core');
+    linksSvg.appendChild(core);
+  });
+}
+
+/* ============================================================
+   三态切换：概览 → 聚焦 → 详情
+   点「部署点」（节点）一定先进入聚焦态，再点一次才展开内容；
+   顶栏按钮 / 方向键这类显式控件则直达详情。
+   ============================================================ */
+
+function setPhase(p) {
+  phase = p;
+  document.documentElement.setAttribute('data-phase', p);
+}
+
+function setHash(hash) {
+  try { history.replaceState(null, '', hash); } catch (err) {}
+}
+
+function setHint(text) { if (hint) hint.textContent = text; }
+
+function hintFor(id) {
+  if (phase === 'overview') return '点击任意名称，进入部署视角';
+  var s = SECTIONS.filter(function (x) { return x.id === id; })[0];
+  var name = s ? s.name : '';
+  if (phase === 'focus') return '再次点击「' + name + '」展开内容　·　Esc 返回概览';
+  return '正在浏览「' + name + '」　·　点击四周其他节点切换　·　Esc 返回';
+}
+
+/* 刷新选中标记：节点高亮；面板只在详情态展开 */
+function syncSelection() {
+  SECTIONS.forEach(function (s) {
+    var on = s.id === activeId;
+    var n = nodeEls[s.id];
+    var p = panelEls[s.id];
+    if (n) {
+      n.classList.toggle('is-active', on);
+      n.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+    if (p) {
+      var show = on && phase === 'detail';
+      p.classList.toggle('is-active', show);
+      p.setAttribute('aria-hidden', show ? 'false' : 'true');
+    }
+  });
+
+  if (topnav) {
+    Array.prototype.forEach.call(topnav.querySelectorAll('button'), function (b) {
+      b.classList.toggle('is-active', b.getAttribute('data-goto') === activeId);
+    });
+  }
+}
+
+/* 概览态：6 个部分都只显示名称，内容一律不展开 */
+function goOverview() {
+  activeId = null;
+  setPhase('overview');
+  syncSelection();
+  setHint(hintFor(null));
+  setHash(location.pathname + location.search);
+  layout();
+  syncVideos();
+}
+
+/* 聚焦态：镜头推近，屏幕上只剩该部分的大号名称 */
+function focusSection(id) {
+  if (!nodeEls[id]) return;
+  activeId = id;
+  setPhase('focus');
+  syncSelection();
+  setHint(hintFor(id));
+  // 允许用 #projects 这样的锚点直接分享/直达
+  setHash('#' + id);
+  layout();
+  syncVideos();
+}
+
+/* 详情态：面板展开 */
+function openDetail(id) {
+  if (!nodeEls[id]) return;
+  activeId = id;
+  setPhase('detail');
+  syncSelection();
+  setHint(hintFor(id));
+  setHash('#' + id);
+  layout();
+  syncVideos();
+}
+
+/* 回退一步：详情 → 聚焦 → 概览 */
+function stepBack() {
+  if (phase === 'detail' && activeId) focusSection(activeId);
+  else if (phase === 'focus') goOverview();
+}
+
+/* 事件绑定 */
+document.addEventListener('click', function (e) {
+  var el = e.target;
+  var t = el.closest ? el.closest('[data-goto], .node') : null;
+
+  if (t) {
+    var id = t.getAttribute('data-goto') || t.getAttribute('data-id');
+    if (!id || !nodeEls[id]) return;
+    e.preventDefault();
+    if (t.classList.contains('node')) {
+      // 部署点：再点一次同一个才展开内容，点别的则先切到它的聚焦态
+      if (phase === 'focus' && activeId === id) openDetail(id);
+      else focusSection(id);
+    } else {
+      // 显式控件（顶栏导航、站名）：直达详情
+      openDetail(id);
+    }
+    return;
+  }
+
+  // 点击空白处 = 回退一步（面板 / 顶栏内部的点击不算）
+  if (el.closest && el.closest('.panel, .topbar')) return;
+  stepBack();
+});
+
+/* 键盘：Esc 逐级后退；左右方向键在分区之间移动 */
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') { stepBack(); return; }
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+
+  var ids = SECTIONS.map(function (s) { return s.id; });
+  var i = activeId ? ids.indexOf(activeId) : -1;
+  var n;
+  if (i < 0) n = (e.key === 'ArrowRight') ? 0 : ids.length - 1;
+  else n = (i + (e.key === 'ArrowRight' ? 1 : -1) + ids.length) % ids.length;
+  e.preventDefault();
+
+  // 方向键是「翻页」手势：已在阅读时直接换内容，否则只移动选中
+  if (phase === 'detail') openDetail(ids[n]);
+  else focusSection(ids[n]);
+});
+
+/* ============================================================
+   3) 标题 Video Text：用「浩瀚星空」视频填充中文标题
+   ============================================================ */
+function syncVideos() {
+  var vids = document.querySelectorAll('.video-text__media video');
+  Array.prototype.forEach.call(vids, function (v) {
+    var panel = v.closest('.panel');
+    var visible = panel && panel.classList.contains('is-active');
+    if (visible) {
+      var p = v.play();
+      if (p && typeof p.catch === 'function') p.catch(function () {});
+    } else {
+      v.pause();
+    }
+  });
+}
+
+(function () {
+  var roots = document.querySelectorAll('[data-video-text]');
+  if (!roots.length) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  function paint(root) {
+    var label = root.querySelector('.video-text__label');
+    var media = root.querySelector('.video-text__media');
+    if (!label || !media) return;
+
+    var w = root.clientWidth;
+    var h = root.clientHeight;
+    if (!w || !h) return;
+
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(w * dpr));
+    canvas.height = Math.max(1, Math.round(h * dpr));
+    var c2 = canvas.getContext('2d');
+    if (!c2) return;
+
+    var cs = window.getComputedStyle(label);
+    c2.scale(dpr, dpr);
+    c2.font = [cs.fontStyle, cs.fontWeight, cs.fontSize, cs.fontFamily].join(' ');
+    try { if ('letterSpacing' in c2) c2.letterSpacing = cs.letterSpacing || '0px'; } catch (err) {}
+    c2.textAlign = 'center';
+    c2.textBaseline = 'alphabetic';
+    c2.fillStyle = '#fff';
+
+    var text = (label.textContent || '').trim();
+    if (!text) return;
+
+    var m = c2.measureText(text);
+    var ascent = m.actualBoundingBoxAscent;
+    var descent = m.actualBoundingBoxDescent;
+    if (typeof ascent !== 'number' || isNaN(ascent)) ascent = parseFloat(cs.fontSize) * 0.8;
+    if (typeof descent !== 'number' || isNaN(descent)) descent = 0;
+    c2.fillText(text, w / 2, h / 2 + (ascent - descent) / 2);
+
+    var url;
+    try { url = canvas.toDataURL('image/png'); } catch (err) { return; }
+    if (!url) return;
+
+    media.style.webkitMaskImage = 'url("' + url + '")';
+    media.style.maskImage = 'url("' + url + '")';
+    root.classList.add('is-video');
+  }
+
+  Array.prototype.forEach.call(roots, function (root) { paint(root); });
+
+  var timer = null;
+  window.addEventListener('resize', function () {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(function () {
+      Array.prototype.forEach.call(roots, paint);
+    }, 160);
+  });
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () {
+      Array.prototype.forEach.call(roots, paint);
+    }).catch(function () {});
+  }
+})();
+
+/* ============================================================
+   4) Morphing Text：个人格言多段平滑切换
+   ============================================================ */
+(function () {
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll('.morphing').forEach(function (group) {
+    var items = Array.prototype.slice.call(group.querySelectorAll('.morph-item'));
+    if (items.length < 2) return;
+    group.classList.add('is-ready');
+    items[0].classList.add('is-active');
+    if (reduce) return;
+    var index = 0;
+    var interval = parseInt(group.getAttribute('data-morph-interval'), 10) || 3600;
+    setInterval(function () {
+      items[index].classList.remove('is-active');
+      index = (index + 1) % items.length;
+      items[index].classList.add('is-active');
+    }, interval);
+  });
+})();
+
+/* ============================================================
+   4.5) 神经元节点：为每个节点生成有机的神经元图形
+   （不规则胞体 + 带锥度的树突 + 发光突触末梢 + 流动电信号）
+   ============================================================ */
+(function buildNeurons() {
+  var SIZE = 176, C = SIZE / 2, MAXR = 84;
+
+  // 以 data-id 为种子的随机数，保证每次加载形状一致
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function seedFrom(str) {
+    var h = 2166136261;
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function f2(v) { return Math.round(v * 100) / 100; }
+  function P(x, y) { return { x: x, y: y }; }
+  function qp(p0, c, p1, t) {
+    var m = 1 - t;
+    return P(m * m * p0.x + 2 * m * t * c.x + t * t * p1.x,
+             m * m * p0.y + 2 * m * t * c.y + t * t * p1.y);
+  }
+  function qt(p0, c, p1, t) {
+    var m = 1 - t;
+    return P(2 * m * (c.x - p0.x) + 2 * t * (p1.x - c.x),
+             2 * m * (c.y - p0.y) + 2 * t * (p1.y - c.y));
+  }
+  function seg(p0, c, p1) {
+    return 'M' + f2(p0.x) + ' ' + f2(p0.y) + 'Q' + f2(c.x) + ' ' + f2(c.y) + ' ' + f2(p1.x) + ' ' + f2(p1.y);
+  }
+
+  /* 带锥度的树突：沿二次贝塞尔中心线向两侧偏移半个宽度，构成填充形状 */
+  function strand(p0, ctrl, p1, w0, w1) {
+    var steps = 16, L = [], R = [], i, t, p, g, len, nx, ny, w;
+    for (i = 0; i <= steps; i++) {
+      t = i / steps;
+      p = qp(p0, ctrl, p1, t);
+      g = qt(p0, ctrl, p1, t);
+      len = Math.hypot(g.x, g.y) || 1;
+      nx = -g.y / len; ny = g.x / len;
+      w = (w0 * Math.pow(1 - t, 1.15) + w1) / 2;
+      L.push([f2(p.x + nx * w), f2(p.y + ny * w)]);
+      R.push([f2(p.x - nx * w), f2(p.y - ny * w)]);
+    }
+    var d = 'M' + L[0][0] + ' ' + L[0][1];
+    for (i = 1; i < L.length; i++) d += 'L' + L[i][0] + ' ' + L[i][1];
+    for (i = R.length - 1; i >= 0; i--) d += 'L' + R[i][0] + ' ' + R[i][1];
+    return d + 'Z';
+  }
+
+  /* 不规则胞体：闭合的 Catmull-Rom → 三次贝塞尔 */
+  function blob(cx, cy, r, count, rand) {
+    var pts = [], i, a, rr;
+    for (i = 0; i < count; i++) {
+      a = (i / count) * Math.PI * 2;
+      rr = r * (0.72 + rand() * 0.56);
+      pts.push([f2(cx + Math.cos(a) * rr), f2(cy + Math.sin(a) * rr)]);
+    }
+    var n = pts.length, d = 'M' + pts[0][0] + ' ' + pts[0][1];
+    for (i = 0; i < n; i++) {
+      var a0 = pts[(i - 1 + n) % n], a1 = pts[i], a2 = pts[(i + 1) % n], a3 = pts[(i + 2) % n];
+      var c1x = a1[0] + (a2[0] - a0[0]) / 6, c1y = a1[1] + (a2[1] - a0[1]) / 6;
+      var c2x = a2[0] - (a3[0] - a1[0]) / 6, c2y = a2[1] - (a3[1] - a1[1]) / 6;
+      d += 'C' + f2(c1x) + ' ' + f2(c1y) + ' ' + f2(c2x) + ' ' + f2(c2y) + ' ' + a2[0] + ' ' + a2[1];
+    }
+    return d + 'Z';
+  }
+
+  function clampToField(p) {
+    var dx = p.x - C, dy = p.y - C, dist = Math.hypot(dx, dy);
+    if (dist > MAXR) { var s = MAXR / dist; return P(C + dx * s, C + dy * s); }
+    return p;
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.node'), function (el) {
+    var host = el.querySelector('.node-neuron');
+    if (!host) return;
+
+    var rand = mulberry32(seedFrom(el.getAttribute('data-id') || 'node') ^ 0x9e3779b9);
+    var somaR = SIZE * 0.118;
+    var dendMarkup = '', hlMarkup = '', tipMarkup = '', sparks = '';
+    var tips = [], mains = [];
+
+    var nD = 10 + Math.floor(rand() * 4);
+    for (var i = 0; i < nD; i++) {
+      var ang = (i / nD) * Math.PI * 2 + (rand() - 0.5) * 0.5;
+      var start = P(C + Math.cos(ang) * somaR * 0.72, C + Math.sin(ang) * somaR * 0.72);
+      var len = 38 + rand() * 28;
+      var endAng = ang + (rand() - 0.5) * 0.6;
+      var end = clampToField(P(start.x + Math.cos(endAng) * len, start.y + Math.sin(endAng) * len));
+      var mid = P((start.x + end.x) / 2, (start.y + end.y) / 2);
+      var perp = P(-(end.y - start.y), end.x - start.x);
+      var plen = Math.hypot(perp.x, perp.y) || 1;
+      var bend = (rand() - 0.5) * 26;
+      var ctrl = P(mid.x + perp.x / plen * bend, mid.y + perp.y / plen * bend);
+
+      dendMarkup += '<path class="dendrite" d="' + strand(start, ctrl, end, 6.4 + rand() * 1.8, 1.1) + '"/>';
+      hlMarkup += '<path class="dendrite-hl" d="' + seg(start, ctrl, end) + '"/>';
+      mains.push({ p0: start, c: ctrl, p1: end });
+      tips.push(end);
+
+      // 部分树突在中段分叉，形成更有机的形态
+      if (rand() < 0.45) {
+        var at = 0.45 + rand() * 0.28;
+        var fp = qp(start, ctrl, end, at);
+        var fa = Math.atan2(end.y - start.y, end.x - start.x) + (rand() < 0.5 ? 1 : -1) * (0.5 + rand() * 0.55);
+        var flen = len * (0.34 + rand() * 0.3);
+        var fend = clampToField(P(fp.x + Math.cos(fa) * flen, fp.y + Math.sin(fa) * flen));
+        var fmid = P((fp.x + fend.x) / 2, (fp.y + fend.y) / 2);
+        var fperp = P(-(fend.y - fp.y), fend.x - fp.x);
+        var fplen = Math.hypot(fperp.x, fperp.y) || 1;
+        var fbend = (rand() - 0.5) * 16;
+        var fctrl = P(fmid.x + fperp.x / fplen * fbend, fmid.y + fperp.y / fplen * fbend);
+        dendMarkup += '<path class="dendrite" d="' + strand(fp, fctrl, fend, 3.2 + rand() * 1.4, 0.9) + '"/>';
+        hlMarkup += '<path class="dendrite-hl" d="' + seg(fp, fctrl, fend) + '"/>';
+        tips.push(fend);
+      }
+    }
+
+    for (var k = 0; k < tips.length; k++) {
+      tipMarkup += '<circle class="tip" cx="' + f2(tips[k].x) + '" cy="' + f2(tips[k].y) +
+        '" r="' + (1.5 + (k % 3) * 0.35).toFixed(2) +
+        '" style="animation-delay:' + (k * 0.24).toFixed(2) + 's"/>';
+    }
+
+    // 沿 3 条树突流动的电信号
+    for (var s = 0; s < 3; s++) {
+      var m = mains[Math.floor(rand() * mains.length)];
+      sparks += '<circle class="spark" r="1.8">' +
+        '<animateMotion dur="' + (2.2 + rand() * 1.8).toFixed(2) + 's" begin="' + (rand() * 2.6).toFixed(2) +
+        's" repeatCount="indefinite" path="' + seg(m.p0, m.c, m.p1) + '"/></circle>';
+    }
+
+    var somaMarkup =
+      '<path class="soma" d="' + blob(C, C, somaR, 11, rand) + '"/>' +
+      '<path class="soma-hi" d="' + blob(C - somaR * 0.16, C - somaR * 0.2, somaR * 0.9, 10, rand) + '" fill="url(#neuronHi)"/>' +
+      '<path class="soma-rim" d="' + blob(C, C, somaR, 11, rand) + '" fill="url(#neuronRim)"/>' +
+      '<circle class="soma-core" cx="' + f2(C - somaR * 0.2) + '" cy="' + f2(C - somaR * 0.24) + '" r="' + f2(somaR * 0.24) + '"/>';
+
+    host.innerHTML =
+      '<svg class="neuron" viewBox="0 0 ' + SIZE + ' ' + SIZE + '" aria-hidden="true" focusable="false">' +
+      '<g class="neuron-dendrites">' + dendMarkup + '</g>' +
+      '<g class="neuron-hl">' + hlMarkup + '</g>' +
+      '<g class="neuron-tips">' + tipMarkup + '</g>' +
+      '<g class="neuron-soma">' + somaMarkup + '</g>' +
+      '<g class="neuron-sparks">' + sparks + '</g>' +
+      '</svg>';
+  });
+})();
+
+/* ============================================================
+   5) 初始化
+   ============================================================ */
+(function () {
+  // 支持 #about / #projects 之类的直达锚点（带锚点就直接落到详情，否则从概览开始）
+  var hash = (location.hash || '').replace('#', '');
+  if (hash && nodeEls[hash]) openDetail(hash);
+  else goOverview();
+
+  var yearEl = document.getElementById('year');
+  if (yearEl) yearEl.textContent = new Date().getFullYear();
+})();
+</script>
+</body>
+</html>

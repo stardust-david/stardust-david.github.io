@@ -1,0 +1,17 @@
+# macOS 系统文件
+.DS_Store
+
+# 文本编辑器临时文件
+*.swp
+*.swo
+*~
+
+# 本地测试/日志（如果你以后用构建工具可继续补充 node_modules 等）
+node_modules/
+*.log
+
+# 本地预览服务（仅本机使用，不发布到公网仓库）
+serve.py
+serve.sh
+启动主页.command
+__pycache__/
