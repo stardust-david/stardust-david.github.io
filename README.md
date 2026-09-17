@@ -51,6 +51,16 @@ python3 -m http.server 8000
 - 需要 Mac 保持开机，且手机与电脑处于同一 Wi-Fi。
 - 更完整的注意事项见 `docs/` 目录下的《个人主页局域网访问说明》。
 
+## 公网地址（已部署）
+
+主页已部署到 GitHub Pages，任何设备都能访问：
+
+**https://stardust-david.github.io/**
+
+仓库：<https://github.com/stardust-david/stardust-david.github.io>（公开）
+
+更新内容后执行 `git add -A && git commit -m "更新" && git push`，约 1 分钟后线上生效。
+
 ## 如何上传到 GitHub Pages（免费部署，让同学能通过网址访问）
 
 1. 在 GitHub 新建一个仓库，**仓库名建议填 `你的用户名.github.io`**（这样能直接用 `https://你的用户名.github.io` 访问）。
