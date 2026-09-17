@@ -882,6 +882,216 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
     transition: opacity 0.3s ease;
   }
 }
+
+/* ============================================================
+   反馈入口与反馈表单
+   顶栏按钮是 .topbar 的直接子元素（不放进 .topnav——窄屏会把 .topnav 整块隐藏，
+   放进里面手机就看不到入口了）；浮层 z-index 60，盖住顶栏(20)与节点层(4)。
+   ============================================================ */
+.fb-entry {
+  flex: none;
+  padding: 7px 15px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.42);
+  background: rgba(56, 189, 248, 0.1);
+  color: #cfe6ff;
+  font-family: inherit;
+  font-size: 0.86rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: color 0.3s ease, background 0.3s ease, border-color 0.3s ease,
+              box-shadow 0.3s ease;
+}
+/* 桌面：站名靠左、导航靠右、反馈按钮占最右上角（保持按钮在「顶栏右上角」的位置） */
+.topbar { justify-content: flex-start; }
+.topnav { margin-left: auto; }
+.fb-entry:hover, .fb-entry:focus-visible {
+  outline: none;
+  color: #04121c;
+  font-weight: 600;
+  border-color: transparent;
+  background: linear-gradient(120deg, #7dd3fc, #a855f7);
+  box-shadow: 0 0 22px rgba(120, 170, 255, 0.45);
+}
+
+.fb-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 18px;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(12, 20, 40, 0.84), rgba(2, 4, 10, 0.93));
+  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(7px);
+}
+.fb-overlay.is-open { display: flex; }
+
+.fb-card {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px 24px 22px;
+  border-radius: 20px;
+  border: 1px solid rgba(125, 211, 252, 0.26);
+  background: linear-gradient(165deg, rgba(11, 18, 34, 0.97), rgba(5, 8, 16, 0.99));
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.62),
+              0 0 0 1px rgba(120, 170, 255, 0.06) inset;
+  color: #e7eefc;
+}
+.fb-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.fb-head h2 { margin: 0; font-size: 1.12rem; letter-spacing: 0.06em; }
+.fb-head p { margin: 5px 0 0; font-size: 0.8rem; line-height: 1.55; color: var(--muted); }
+.fb-close {
+  flex: none;
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(147, 166, 196, 0.28);
+  background: transparent;
+  color: #b9cae8;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+}
+.fb-close:hover, .fb-close:focus-visible {
+  outline: none;
+  color: #fff;
+  border-color: rgba(125, 211, 252, 0.6);
+  background: rgba(120, 170, 255, 0.12);
+}
+
+.fb-form { display: grid; gap: 15px; }
+.fb-field { display: grid; gap: 7px; margin: 0; padding: 0; border: 0; }
+.fb-label {
+  display: block;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  color: #cfe0f8;
+}
+.fb-req { margin-left: 3px; color: #7dd3fc; }
+.fb-opt { margin-left: 6px; font-size: 0.72rem; color: var(--muted); }
+
+.fb-input, .fb-textarea {
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 11px;
+  border: 1px solid rgba(147, 166, 196, 0.26);
+  background: rgba(6, 11, 22, 0.85);
+  color: #eaf2ff;
+  font-family: inherit;
+  font-size: 0.92rem;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.fb-textarea { min-height: 108px; line-height: 1.6; resize: vertical; }
+.fb-input::placeholder, .fb-textarea::placeholder { color: rgba(147, 166, 196, 0.62); }
+.fb-input:focus, .fb-textarea:focus {
+  outline: none;
+  border-color: rgba(125, 211, 252, 0.72);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16);
+}
+
+.fb-devices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+}
+.fb-device { position: relative; }
+.fb-device input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.fb-device span {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(147, 166, 196, 0.28);
+  color: #b9cae8;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: color 0.25s ease, background 0.25s ease, border-color 0.25s ease,
+              box-shadow 0.25s ease;
+}
+.fb-device span:hover { color: #fff; background: rgba(120, 170, 255, 0.12); }
+.fb-device input:checked + span {
+  color: #04121c;
+  font-weight: 600;
+  border-color: transparent;
+  background: linear-gradient(120deg, #7dd3fc, #a855f7);
+  box-shadow: 0 0 18px rgba(120, 170, 255, 0.4);
+}
+.fb-device input:focus-visible + span {
+  outline: 2px solid rgba(125, 211, 252, 0.8);
+  outline-offset: 2px;
+}
+
+.fb-field.is-invalid .fb-input,
+.fb-field.is-invalid .fb-textarea,
+.fb-field.is-invalid .fb-devices { border-color: rgba(248, 113, 113, 0.7); }
+.fb-error { display: none; margin: 0; font-size: 0.76rem; color: #fca5a5; }
+.fb-field.is-invalid .fb-error { display: block; }
+.fb-count { justify-self: end; font-size: 0.72rem; color: var(--muted); }
+
+.fb-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.fb-submit {
+  padding: 11px 26px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: linear-gradient(120deg, #7dd3fc, #a855f7);
+  color: #04121c;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: box-shadow 0.25s ease, opacity 0.25s ease;
+}
+.fb-submit:hover:enabled { box-shadow: 0 0 26px rgba(120, 170, 255, 0.55); }
+.fb-submit:disabled { opacity: 0.55; cursor: default; }
+.fb-status { font-size: 0.82rem; line-height: 1.5; color: var(--muted); }
+.fb-status.is-ok { color: #6ee7b7; }
+.fb-status.is-err { color: #fca5a5; }
+.fb-note { margin: 0; font-size: 0.72rem; line-height: 1.55; color: var(--muted); }
+.fb-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+
+@media (max-width: 860px) {
+  /* 窄屏顶栏只有站名一行（高 41px），节点环按顶栏下沿排布。
+     按钮若留在文档流里会把顶栏撑到 57px、把整个环往下推，
+     在 320x568 / 844x390 这类紧凑视口会让面板压到节点上——
+     所以窄屏改为绝对定位居中，顶栏高度与改造前完全一致。 */
+  .fb-entry {
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 8px 13px;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+  }
+  .fb-overlay { align-items: flex-start; padding: 16px 12px; }
+  .fb-card { padding: 20px 16px 18px; border-radius: 17px; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); }
+  .fb-form { gap: 13px; }
+  .fb-textarea { min-height: 92px; }
+}
+@media (max-width: 860px) and (max-height: 560px) {
+  .fb-head { margin-bottom: 12px; }
+  .fb-head p { display: none; }
+  .fb-card { padding: 16px 14px 15px; }
+  .fb-form { gap: 11px; }
+  .fb-textarea { min-height: 72px; }
+  .fb-device span { padding: 7px 13px; font-size: 0.82rem; }
+}
 </style>
 </head>
 <body>
@@ -914,6 +1124,7 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
     <button type="button" data-goto="education">教育</button>
     <button type="button" data-goto="contact">联系</button>
   </nav>
+  <button class="fb-entry" type="button" data-feedback-open aria-haspopup="dialog">反馈</button>
 </header>
 
 <main class="stage" id="stage">
@@ -1089,6 +1300,66 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
 </main>
 
 <p class="hint" id="hint">点击任意名称，进入部署视角</p>
+
+<!-- ============ 反馈浮层：昵称(必填) / 与我关系(选填) / 所用设备(必选) / 反馈内容(必填) ============ -->
+<div class="fb-overlay" id="fbOverlay" role="dialog" aria-modal="true" aria-labelledby="fbTitle">
+  <div class="fb-card" id="fbCard">
+    <div class="fb-head">
+      <div>
+        <h2 id="fbTitle">留个反馈</h2>
+        <p>页面、内容、排版哪里不对劲，或者想加点什么，都欢迎写在这里，我会认真看。</p>
+      </div>
+      <button class="fb-close" id="fbClose" type="button" aria-label="关闭反馈表单">✕</button>
+    </div>
+
+    <form class="fb-form" id="fbForm" novalidate>
+      <div class="fb-field" data-field="nickname">
+        <label class="fb-label" for="fbNickname">昵称<span class="fb-req">*</span><span class="fb-opt">必填</span></label>
+        <input class="fb-input" id="fbNickname" name="nickname" type="text" maxlength="40" autocomplete="nickname" placeholder="怎么称呼你">
+        <p class="fb-error" id="fbErrNickname">请填写昵称</p>
+      </div>
+
+      <div class="fb-field" data-field="relation">
+        <label class="fb-label" for="fbRelation">与我关系<span class="fb-opt">选填</span></label>
+        <input class="fb-input" id="fbRelation" name="relation" type="text" maxlength="40" list="fbRelationList" placeholder="同学 / 朋友 / 家人 / 老师，也可以自己写">
+        <datalist id="fbRelationList">
+          <option value="同学"></option>
+          <option value="朋友"></option>
+          <option value="家人"></option>
+          <option value="老师"></option>
+          <option value="其他"></option>
+        </datalist>
+        <p class="fb-error" id="fbErrRelation">最多 40 个字</p>
+      </div>
+
+      <fieldset class="fb-field" data-field="device">
+        <legend class="fb-label">所用设备<span class="fb-req">*</span><span class="fb-opt">必选一项，已按你的设备预选</span></legend>
+        <div class="fb-devices" id="fbDevices">
+          <label class="fb-device"><input type="radio" name="device" value="手机"><span>手机</span></label>
+          <label class="fb-device"><input type="radio" name="device" value="平板"><span>平板</span></label>
+          <label class="fb-device"><input type="radio" name="device" value="电脑"><span>电脑</span></label>
+          <label class="fb-device"><input type="radio" name="device" value="其他"><span>其他</span></label>
+        </div>
+        <p class="fb-error" id="fbErrDevice">请选择所用设备</p>
+      </fieldset>
+
+      <div class="fb-field" data-field="content">
+        <label class="fb-label" for="fbContent">反馈内容<span class="fb-req">*</span><span class="fb-opt">必填</span></label>
+        <textarea class="fb-textarea" id="fbContent" name="content" maxlength="2000" placeholder="例如：手机上第三个节点点开后有点挡住、简介里的照片想换一张……"></textarea>
+        <span class="fb-count" id="fbCount">0 / 2000</span>
+        <p class="fb-error" id="fbErrContent">请填写反馈内容</p>
+      </div>
+
+      <input class="fb-hp" id="fbTrap" name="company_website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+      <div class="fb-actions">
+        <button class="fb-submit" id="fbSubmit" type="submit">提交</button>
+        <span class="fb-status" id="fbStatus" role="status" aria-live="polite"></span>
+      </div>
+      <p class="fb-note" id="fbNote">提交后直接写入我的私有反馈库，公网读不到，只有我能看见。</p>
+    </form>
+  </div>
+</div>
 
 <script>
 /* ============================================================
@@ -1828,6 +2099,258 @@ function stepBack() {
   else if (phase === 'focus') goOverview();
 }
 
+/* ============================================================
+   4) 反馈表单：顶栏入口 → 浮层 → 写入 Supabase 反馈库
+   ------------------------------------------------------------
+   反馈库配置见下方 FEEDBACK_DB（项目地址 + publishable key）。
+   publishable key 本来就是要放进前端页面的公开密钥，真正的保护来自数据库的
+   RLS 策略（只允许匿名 insert，不允许 select/update/delete）。
+   建表脚本：docs/反馈库建表.sql
+   自测钩子：window.FEEDBACK_DB_TEST 可在不改本文件的前提下把提交打到本地桩服务。
+   ============================================================ */
+var FEEDBACK_DB = {
+  url: 'https://vqvsachtgfaajezfjlox.supabase.co',
+  anonKey: 'sb_publishable_46DPWEDWzRB91TswWehYYg_DaD1eJWD'
+};
+var FEEDBACK_TABLE = 'feedback';
+var FEEDBACK_DEVICES = ['手机', '平板', '电脑', '其他'];
+var FEEDBACK_COOLDOWN_MS = 30000;   // 同一浏览器两次提交的最小间隔
+
+var fbOverlay  = document.getElementById('fbOverlay');
+var fbForm     = document.getElementById('fbForm');
+var fbSubmit   = document.getElementById('fbSubmit');
+var fbStatus   = document.getElementById('fbStatus');
+var fbCount    = document.getElementById('fbCount');
+var fbTrap     = document.getElementById('fbTrap');
+var fbOpenBtn  = document.querySelector('[data-feedback-open]');
+var fbLastFocus = null;
+var fbDone = false;                 // 已提交成功：提交按钮变成「关闭」
+
+function fbDatabase() { return window.FEEDBACK_DB_TEST || FEEDBACK_DB; }
+
+function fbConfigured() {
+  var db = fbDatabase();
+  return !!(db && /^https?:\/\//.test(db.url || '') &&
+            (db.url || '').indexOf('REPLACE-ME') < 0 &&
+            db.anonKey && String(db.anonKey).indexOf('REPLACE-ME') < 0);
+}
+
+function fbIsOpen() { return !!fbOverlay && fbOverlay.classList.contains('is-open'); }
+
+/* 按 UA 猜一个默认设备（用户可以改），保证「必选」不需要访客额外操作 */
+function fbDetectDevice() {
+  var ua = navigator.userAgent || '';
+  if (/iPad|Tablet|PlayBook|Silk/i.test(ua)) return '平板';
+  if (/Android/i.test(ua) && !/Mobile/i.test(ua)) return '平板';
+  if (/iPhone|iPod|Android|Mobile/i.test(ua)) return '手机';
+  if (!/Windows|Macintosh|Mac OS X|Linux|CrOS/i.test(ua)) return '其他';
+  return '电脑';
+}
+
+function fbSetDevice(value) {
+  var radios = fbForm.querySelectorAll('input[name="device"]');
+  Array.prototype.forEach.call(radios, function (r) { r.checked = (r.value === value); });
+}
+
+function fbFieldBox(name) { return fbForm.querySelector('.fb-field[data-field="' + name + '"]'); }
+
+function fbSetError(name, msg) {
+  var box = fbFieldBox(name);
+  if (!box) return;
+  if (msg) {
+    var err = box.querySelector('.fb-error');
+    if (err) err.textContent = msg;
+  }
+  box.classList.toggle('is-invalid', !!msg);
+}
+
+function fbClearErrors() {
+  Array.prototype.forEach.call(fbForm.querySelectorAll('.fb-field'), function (b) {
+    b.classList.remove('is-invalid');
+  });
+}
+
+function fbCollect() {
+  var dev = fbForm.querySelector('input[name="device"]:checked');
+  return {
+    nickname: (fbForm.elements.nickname.value || '').trim(),
+    relation: (fbForm.elements.relation.value || '').trim(),
+    device: dev ? dev.value : '',
+    content: (fbForm.elements.content.value || '').trim()
+  };
+}
+
+function fbValidate(d) {
+  var errs = {};
+  if (!d.nickname) errs.nickname = '请填写昵称';
+  else if (d.nickname.length > 40) errs.nickname = '昵称最多 40 个字';
+  if (d.relation && d.relation.length > 40) errs.relation = '最多 40 个字';
+  if (FEEDBACK_DEVICES.indexOf(d.device) < 0) errs.device = '请选择所用设备';
+  if (!d.content) errs.content = '请填写反馈内容';
+  else if (d.content.length > 2000) errs.content = '最多 2000 个字';
+  return errs;
+}
+
+function fbSetStatus(text, kind) {
+  if (!fbStatus) return;
+  fbStatus.textContent = text || '';
+  fbStatus.className = 'fb-status' + (kind ? ' is-' + kind : '');
+}
+
+function fbReset() {
+  fbForm.reset();
+  fbClearErrors();
+  if (fbCount) fbCount.textContent = '0 / 2000';
+  fbSetDevice(fbDetectDevice());
+  fbDone = false;
+  if (fbSubmit) { fbSubmit.textContent = '提交'; fbSubmit.disabled = !fbConfigured(); }
+  fbSetStatus('');
+}
+
+function fbOpen() {
+  if (!fbOverlay) return;
+  fbLastFocus = document.activeElement;
+  if (fbDone) fbReset();
+  fbOverlay.classList.add('is-open');
+  if (!fbForm.querySelector('input[name="device"]:checked')) fbSetDevice(fbDetectDevice());
+  // 每次打开都按「当前配置」重算提交按钮状态，避免状态粘滞
+  var ready = fbConfigured();
+  if (!ready) fbSetStatus('反馈通道还没接通，稍后再来试试。', 'err');
+  if (fbSubmit) fbSubmit.disabled = !ready;
+  var first = document.getElementById('fbNickname');
+  if (first) setTimeout(function () { first.focus(); }, 60);
+}
+
+function fbClose() {
+  if (!fbOverlay) return;
+  fbOverlay.classList.remove('is-open');
+  fbSetStatus('');
+  if (fbLastFocus && fbLastFocus.focus) fbLastFocus.focus();
+}
+
+/* Tab 键锁在卡片内（aria-modal 的基本要求） */
+function fbTrapFocus(e) {
+  var card = document.getElementById('fbCard');
+  if (!card) return;
+  var nodes = card.querySelectorAll('button, input, textarea, [href]');
+  var list = Array.prototype.filter.call(nodes, function (el) {
+    return el.tabIndex >= 0 && el.offsetParent !== null;
+  });
+  if (!list.length) return;
+  var first = list[0], last = list[list.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+
+function fbSubmitToDb(d) {
+  var db = fbDatabase();
+  var endpoint = String(db.url).replace(/\/+$/, '') + '/rest/v1/' + FEEDBACK_TABLE;
+  return fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'apikey': db.anonKey,
+      'Authorization': 'Bearer ' + db.anonKey,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal'
+    },
+    body: JSON.stringify({
+      nickname: d.nickname,
+      relation: d.relation || null,
+      device: d.device,
+      content: d.content,
+      ua: String(navigator.userAgent || '').slice(0, 300)
+    })
+  });
+}
+
+function fbSucceed() {
+  fbDone = true;
+  fbForm.reset();
+  fbClearErrors();
+  if (fbCount) fbCount.textContent = '0 / 2000';
+  fbSetStatus('已收到，谢谢你的反馈！', 'ok');
+  if (fbSubmit) { fbSubmit.textContent = '关闭'; fbSubmit.disabled = false; }
+}
+
+if (fbOpenBtn) {
+  fbOpenBtn.addEventListener('click', function (e) { e.preventDefault(); fbOpen(); });
+}
+
+if (fbOverlay) {
+  fbOverlay.addEventListener('click', function (e) { if (e.target === fbOverlay) fbClose(); });
+  var fbCloseBtn = document.getElementById('fbClose');
+  if (fbCloseBtn) fbCloseBtn.addEventListener('click', function (e) { e.preventDefault(); fbClose(); });
+}
+
+if (fbForm) {
+  fbForm.addEventListener('input', function (e) {
+    if (e.target === fbForm.elements.content && fbCount) {
+      fbCount.textContent = fbForm.elements.content.value.length + ' / 2000';
+    }
+    var box = e.target.closest ? e.target.closest('.fb-field') : null;
+    if (box) box.classList.remove('is-invalid');
+  });
+
+  fbForm.addEventListener('change', function (e) {
+    if (e.target && e.target.name === 'device') {
+      var box = fbFieldBox('device');
+      if (box) box.classList.remove('is-invalid');
+    }
+  });
+
+  fbForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // 已提交成功：这一次点击当作「关闭」
+    if (fbDone) { fbClose(); fbReset(); return; }
+    if (fbSubmit && fbSubmit.disabled) return;
+
+    // 蜜罐：真人不会填，填了就当作机器人，静默丢弃
+    if (fbTrap && fbTrap.value) { fbSucceed(); return; }
+
+    var data = fbCollect();
+    fbClearErrors();
+    var errs = fbValidate(data);
+    var firstBad = null;
+    Object.keys(errs).forEach(function (k) {
+      fbSetError(k, errs[k]);
+      if (!firstBad) firstBad = k;
+    });
+    if (firstBad) {
+      fbSetStatus('还有必填项没填完，看看标红的地方。', 'err');
+      var box = fbFieldBox(firstBad);
+      var target = box && (box.querySelector('.fb-input') || box.querySelector('.fb-textarea') ||
+                           box.querySelector('input[name="device"]'));
+      if (target) target.focus();
+      return;
+    }
+
+    var last = 0;
+    try { last = Number(localStorage.getItem('fbLastAt') || 0); } catch (_) {}
+    if (last && Date.now() - last < FEEDBACK_COOLDOWN_MS) {
+      var wait = Math.ceil((FEEDBACK_COOLDOWN_MS - (Date.now() - last)) / 1000);
+      fbSetStatus('刚收到你的反馈啦，' + wait + ' 秒后可以再提交一条。', 'err');
+      return;
+    }
+
+    if (fbSubmit) fbSubmit.disabled = true;
+    fbSetStatus('正在提交…');
+    fbSubmitToDb(data).then(function (res) {
+      if (res && res.ok) {
+        try { localStorage.setItem('fbLastAt', String(Date.now())); } catch (_) {}
+        fbSucceed();
+      } else {
+        fbSetStatus('提交失败（' + (res ? res.status : '?') + '），内容还在，稍后再试一次。', 'err');
+        if (fbSubmit) fbSubmit.disabled = false;
+      }
+    }).catch(function () {
+      fbSetStatus('网络好像不通，内容还在，稍后再试一次。', 'err');
+      if (fbSubmit) fbSubmit.disabled = false;
+    });
+  });
+}
+
 /* 事件绑定 */
 document.addEventListener('click', function (e) {
   var el = e.target;
@@ -1848,13 +2371,19 @@ document.addEventListener('click', function (e) {
     return;
   }
 
-  // 点击空白处 = 回退一步（面板 / 顶栏内部的点击不算）
-  if (el.closest && el.closest('.panel, .topbar')) return;
+  // 点击空白处 = 回退一步（面板 / 顶栏 / 反馈浮层内部的点击不算）
+  if (el.closest && el.closest('.panel, .topbar, .fb-overlay')) return;
   stepBack();
 });
 
 /* 键盘：Esc 逐级后退；左右方向键在分区之间移动 */
 document.addEventListener('keydown', function (e) {
+  // 反馈浮层打开时，键盘全部让给表单：Esc 关浮层、Tab 锁在卡片内、方向键留给输入框
+  if (fbIsOpen()) {
+    if (e.key === 'Escape') { e.preventDefault(); fbClose(); }
+    else if (e.key === 'Tab') { fbTrapFocus(e); }
+    return;
+  }
   if (e.key === 'Escape') { stepBack(); return; }
   if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
 
