@@ -478,6 +478,8 @@ html[data-phase="detail"] .node:not(.is-active):hover { opacity: 1; }
 .video-text.is-video .video-text__label {
   color: transparent;
   -webkit-text-fill-color: transparent;
+  /* 字形外发光：在深色背景上再拉开一档辨识度 */
+  text-shadow: 0 0 18px rgba(147, 197, 253, 0.35), 0 0 40px rgba(96, 165, 250, 0.18);
 }
 .video-text.is-video .video-text__media { opacity: 1; }
 
@@ -875,6 +877,7 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
   .video-text.is-video .video-text__label {
     color: inherit;
     -webkit-text-fill-color: currentColor;
+    text-shadow: none;
   }
   .morphing.is-ready .morph-item {
     filter: none;
@@ -1156,7 +1159,7 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
       <span class="node-name">教育</span>
     </button>
 
-    <button type="button" class="node" data-id="contact" style="--c:#60a5fa" aria-pressed="false">
+    <button type="button" class="node" data-id="contact" style="--c:#818cf8" aria-pressed="false">
       <span class="node-neuron" aria-hidden="true"></span>
       <span class="node-name">联系</span>
     </button>
@@ -1169,7 +1172,7 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
       <div class="hero-wrap">
         <div class="avatar-ring"><img src="./assets/avatar.png" alt="王俊洋头像" /></div>
         <h1 class="hero-name">
-          <span class="video-text" data-video-text><span class="video-text__label">王俊洋</span><span class="video-text__media" aria-hidden="true"><video autoplay muted loop playsinline preload="auto" src="./assets/starfield.mp4"></video></span></span>
+          <span class="video-text" data-video-text><span class="video-text__label">王俊洋</span><span class="video-text__media" aria-hidden="true"><video autoplay muted loop playsinline preload="auto" src="./assets/starfield-bright.mp4"></video></span></span>
           <span class="hero-name-en">David Wang</span>
         </h1>
         <p class="hero-sub">智能医学工程 · 天津大学香港理工大学深圳未来技术学院</p>
@@ -1183,7 +1186,7 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
     <!-- ============ 个人简介 ============ -->
     <section class="panel" data-id="about" style="--c:#a855f7" aria-hidden="true">
       <div class="panel-head">
-        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">个人简介</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield.mp4"></video></span></span></h2>
+        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">个人简介</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield-bright.mp4"></video></span></span></h2>
         <span class="panel-en">About Me</span>
       </div>
       <p>你好，我是王俊洋 David Wang。恋旧林的羁鸟，思故渊的池鱼——我喜欢在熟悉与未知之间探索，正在学习智能医学工程，把技术用于生命健康是我努力的方向。</p>
@@ -1199,7 +1202,7 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
     <!-- ============ 爱好 ============ -->
     <section class="panel" data-id="hobbies" style="--c:#f472b6" aria-hidden="true">
       <div class="panel-head">
-        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">我的爱好</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield.mp4"></video></span></span></h2>
+        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">我的爱好</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield-bright.mp4"></video></span></span></h2>
         <span class="panel-en">My Hobbies</span>
       </div>
       <p>闲暇时喜欢运动与音乐，也爱和朋友一起玩桌游。</p>
@@ -1226,7 +1229,7 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
     <!-- ============ 作品 ============ -->
     <section class="panel" data-id="projects" style="--c:#34d399" aria-hidden="true">
       <div class="panel-head">
-        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">项目 · 作品</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield.mp4"></video></span></span></h2>
+        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">项目 · 作品</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield-bright.mp4"></video></span></span></h2>
         <span class="panel-en">Projects</span>
       </div>
       <p>这里展示我的项目与作品。</p>
@@ -1249,7 +1252,7 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
     <!-- ============ 教育经历 ============ -->
     <section class="panel" data-id="education" style="--c:#fbbf24" aria-hidden="true">
       <div class="panel-head">
-        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">教育经历</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield.mp4"></video></span></span></h2>
+        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">教育经历</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield-bright.mp4"></video></span></span></h2>
         <span class="panel-en">Education</span>
       </div>
       <div class="timeline">
@@ -1274,12 +1277,12 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
     </section>
 
     <!-- ============ 联系方式 ============ -->
-    <section class="panel" data-id="contact" style="--c:#60a5fa" aria-hidden="true">
+    <section class="panel" data-id="contact" style="--c:#818cf8" aria-hidden="true">
       <div class="panel-head">
-        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">联系方式</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield.mp4"></video></span></span></h2>
+        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">联系方式</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield-bright.mp4"></video></span></span></h2>
         <span class="panel-en">Contact</span>
       </div>
-      <p>欢迎通过以下方式联系我。邮箱已做混淆处理，以防被爬虫抓取。</p>
+      <p>欢迎通过以下方式联系我。</p>
       <div class="contact-list">
         <div class="contact-item">
           <span class="contact-label">GitHub</span>
@@ -1287,7 +1290,7 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
         </div>
         <div class="contact-item">
           <span class="contact-label">邮箱 · Email</span>
-          <span class="contact-value">3026445011 [AT] tju [DOT] edu [DOT] cn</span>
+          <a class="contact-value" href="mailto:3026445011@tju.edu.cn">3026445011@tju.edu.cn</a>
         </div>
         <div class="contact-item">
           <span class="contact-label">社交 · Social</span>
@@ -2461,7 +2464,18 @@ function syncVideos() {
 
     media.style.webkitMaskImage = 'url("' + url + '")';
     media.style.maskImage = 'url("' + url + '")';
-    root.classList.add('is-video');
+
+    // 关键：视频真正出画之前不要隐藏文字，
+    // 否则弱网或视频加载失败时，标题会整段消失（比变暗更难读）
+    var vid = media.querySelector('video');
+    if (!vid) return;
+    if (vid.readyState >= 2) {
+      root.classList.add('is-video');
+    } else {
+      var reveal = function () { root.classList.add('is-video'); };
+      vid.addEventListener('loadeddata', reveal, { once: true });
+      vid.addEventListener('canplay', reveal, { once: true });
+    }
   }
 
   Array.prototype.forEach.call(roots, function (root) { paint(root); });
