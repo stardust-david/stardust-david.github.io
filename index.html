@@ -475,6 +475,22 @@ html[data-phase="detail"] .node:not(.is-active):hover { opacity: 1; }
   object-fit: cover;
   display: block;
 }
+/* 首帧兜底图：真实 <img>，压在视频之上。
+   踩过的坑：video 的 poster 属性在 preload="none" 下不会渲染，而标题文字
+   此刻已经被置为透明——遮罩框里空无一物，就只剩一圈外发光，远看就是
+   「标题上蒙了一层雾」。换成真实 <img> 后，只要它加载完，字形里必定有内容；
+   等视频真正连续出帧（playing）再把它淡出，露出动态星空。 */
+.video-text__poster {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.25s ease;
+}
+.video-text.is-live .video-text__poster { opacity: 0; }
 .video-text.is-video .video-text__label {
   color: transparent;
   -webkit-text-fill-color: transparent;
@@ -1172,7 +1188,7 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
       <div class="hero-wrap">
         <div class="avatar-ring"><img src="./assets/avatar.webp" alt="王俊洋头像" decoding="async" /></div>
         <h1 class="hero-name">
-          <span class="video-text" data-video-text><span class="video-text__label">王俊洋</span><span class="video-text__media" aria-hidden="true"><video autoplay muted loop playsinline preload="auto" poster="./assets/starfield-poster.webp" src="./assets/starfield-bright.mp4"></video></span></span>
+          <span class="video-text" data-video-text><span class="video-text__label">王俊洋</span><span class="video-text__media" aria-hidden="true"><video autoplay muted loop playsinline preload="auto" src="./assets/starfield-bright.mp4"></video><img class="video-text__poster" src="./assets/starfield-poster.webp" alt="" /></span></span>
           <span class="hero-name-en">David Wang</span>
         </h1>
         <p class="hero-sub">智能医学工程 · 天津大学香港理工大学深圳未来技术学院</p>
@@ -1186,7 +1202,7 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
     <!-- ============ 个人简介 ============ -->
     <section class="panel" data-id="about" style="--c:#a855f7" aria-hidden="true">
       <div class="panel-head">
-        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">个人简介</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" poster="./assets/starfield-poster.webp" src="./assets/starfield-bright.mp4"></video></span></span></h2>
+        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">个人简介</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield-bright.mp4"></video><img class="video-text__poster" src="./assets/starfield-poster.webp" alt="" /></span></span></h2>
         <span class="panel-en">About Me</span>
       </div>
       <p>你好，我是王俊洋 David Wang。恋旧林的羁鸟，思故渊的池鱼——我喜欢在熟悉与未知之间探索，正在学习智能医学工程，把技术用于生命健康是我努力的方向。</p>
@@ -1202,7 +1218,7 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
     <!-- ============ 爱好 ============ -->
     <section class="panel" data-id="hobbies" style="--c:#f472b6" aria-hidden="true">
       <div class="panel-head">
-        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">我的爱好</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" poster="./assets/starfield-poster.webp" src="./assets/starfield-bright.mp4"></video></span></span></h2>
+        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">我的爱好</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield-bright.mp4"></video><img class="video-text__poster" src="./assets/starfield-poster.webp" alt="" /></span></span></h2>
         <span class="panel-en">My Hobbies</span>
       </div>
       <p>闲暇时喜欢运动与音乐，也爱和朋友一起玩桌游。</p>
@@ -1229,7 +1245,7 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
     <!-- ============ 作品 ============ -->
     <section class="panel" data-id="projects" style="--c:#34d399" aria-hidden="true">
       <div class="panel-head">
-        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">项目 · 作品</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" poster="./assets/starfield-poster.webp" src="./assets/starfield-bright.mp4"></video></span></span></h2>
+        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">项目 · 作品</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield-bright.mp4"></video><img class="video-text__poster" src="./assets/starfield-poster.webp" alt="" /></span></span></h2>
         <span class="panel-en">Projects</span>
       </div>
       <p>这里展示我的项目与作品。</p>
@@ -1252,7 +1268,7 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
     <!-- ============ 教育经历 ============ -->
     <section class="panel" data-id="education" style="--c:#fbbf24" aria-hidden="true">
       <div class="panel-head">
-        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">教育经历</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" poster="./assets/starfield-poster.webp" src="./assets/starfield-bright.mp4"></video></span></span></h2>
+        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">教育经历</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield-bright.mp4"></video><img class="video-text__poster" src="./assets/starfield-poster.webp" alt="" /></span></span></h2>
         <span class="panel-en">Education</span>
       </div>
       <div class="timeline">
@@ -1279,7 +1295,7 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
     <!-- ============ 联系方式 ============ -->
     <section class="panel" data-id="contact" style="--c:#818cf8" aria-hidden="true">
       <div class="panel-head">
-        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">联系方式</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" poster="./assets/starfield-poster.webp" src="./assets/starfield-bright.mp4"></video></span></span></h2>
+        <h2 class="panel-title"><span class="video-text" data-video-text><span class="video-text__label">联系方式</span><span class="video-text__media" aria-hidden="true"><video muted loop playsinline preload="none" src="./assets/starfield-bright.mp4"></video><img class="video-text__poster" src="./assets/starfield-poster.webp" alt="" /></span></span></h2>
         <span class="panel-en">Contact</span>
       </div>
       <p>欢迎通过以下方式联系我。</p>
@@ -2082,6 +2098,7 @@ function focusSection(id) {
   setHash('#' + id);
   layout();
   syncVideos();
+  warmSection(id);
 }
 
 /* 详情态：面板展开 */
@@ -2094,6 +2111,7 @@ function openDetail(id) {
   setHash('#' + id);
   layout();
   syncVideos();
+  warmSection(id);
 }
 
 /* 回退一步：详情 → 聚焦 → 概览 */
@@ -2354,6 +2372,21 @@ if (fbForm) {
   });
 }
 
+/* 预热触发：鼠标扫过或键盘聚焦到分区节点时，就提前开始缓冲它的视频。
+   等面板真正展开，画面往往已经在播了，标题不会长时间停在静态首帧。*/
+function nodeIdFrom(e) {
+  var n = e.target && e.target.closest ? e.target.closest('.node') : null;
+  return n ? n.getAttribute('data-id') : null;
+}
+document.addEventListener('pointerover', function (e) {
+  var id = nodeIdFrom(e);
+  if (id) warmSection(id);
+});
+document.addEventListener('focusin', function (e) {
+  var id = nodeIdFrom(e);
+  if (id) warmSection(id);
+});
+
 /* 事件绑定 */
 document.addEventListener('click', function (e) {
   var el = e.target;
@@ -2419,6 +2452,25 @@ function syncVideos() {
   });
 }
 
+/* 预热：提前让某个部分的视频开始缓冲。
+   同一份文件、同一个 URL，浏览器直接命中缓存，多触发一次不会多一份流量，
+   但能大幅缩短「静态首帧 → 动态星空」的等待时间。*/
+function warmVideo(v) {
+  if (!v || v.__warm) return;
+  if (v.readyState >= 2 || v.error) return;
+  if (navigator.connection && navigator.connection.saveData) return;
+  v.__warm = true;
+  try {
+    v.preload = 'auto';
+    v.load();
+  } catch (e) {}
+}
+
+function warmSection(id) {
+  var p = panelEls[id];
+  if (p) warmVideo(p.querySelector('.video-text__media video'));
+}
+
 (function () {
   var roots = document.querySelectorAll('[data-video-text]');
   if (!roots.length) return;
@@ -2471,20 +2523,34 @@ function syncVideos() {
     if (!vid) return;
 
     var reveal = function () { root.classList.add('is-video'); };
-    if (vid.readyState >= 2) { reveal(); return; }
 
-    // 视频还没出画时，先用首帧海报顶上：海报约 30KB，通常瞬间到达，
-    // 标题立刻呈现星空质感，视频就绪后再由 video 元素无缝接管
-    var posterUrl = vid.getAttribute('poster');
-    if (posterUrl) {
-      var poster = new Image();
-      poster.onload = reveal;
-      poster.src = posterUrl;
-      if (poster.complete) reveal();
+    // 关键原则：只有「遮罩框里确定画得出内容」时，才允许把文字变透明。
+    // 视频已出画最好；否则必须等兜底 <img> 真正加载完成。
+    // （旧写法只看 Image() 预载回调，视频元素自身没画面，于是出现空窗）
+    if (vid.readyState >= 2) reveal();
+
+    var poster = media.querySelector('.video-text__poster');
+    if (poster) {
+      if (poster.complete && poster.naturalWidth > 0) reveal();
+      else poster.addEventListener('load', reveal, { once: true });
     }
 
+    // 兜底图不可用（缺失/加载失败）时，退回「等视频出画」这条老路
     vid.addEventListener('loadeddata', reveal, { once: true });
     vid.addEventListener('canplay', reveal, { once: true });
+
+    // 视频连续出帧后才撤兜底图：loadeddata 只保证首帧解出来了，
+    // 元素未必已经绘制，过早撤图会立刻变回「只剩一圈外发光」。
+    var goLive = function () {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { root.classList.add('is-live'); });
+      });
+    };
+    vid.addEventListener('playing', goLive, { once: true });
+    // timeupdate 只在真的播放时才持续触发，用来兜住「监听绑定时视频已经
+    // 在播、playing 事件已经过去」的情况（例如首屏自动播放的标题）
+    vid.addEventListener('timeupdate', goLive, { once: true });
+    if (vid.readyState >= 2 && !vid.paused) goLive();
   }
 
   Array.prototype.forEach.call(roots, function (root) { paint(root); });
