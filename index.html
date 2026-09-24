@@ -1084,6 +1084,81 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
 .fb-note { margin: 0; font-size: 0.72rem; line-height: 1.55; color: var(--muted); }
 .fb-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 
+/* ---------- 反馈：反馈成功页（替换表单，而不是只把按钮改名） ---------- */
+/* .fb-form / .fb-done 都是 display:grid，会盖掉 [hidden] 的 UA 样式，必须显式兜住 */
+.fb-form[hidden], .fb-done[hidden] { display: none; }
+.fb-card.is-done .fb-head-copy { display: none; }
+.fb-card.is-done .fb-head { margin-bottom: 6px; }
+
+.fb-done {
+  display: grid;
+  justify-items: center;
+  gap: 13px;
+  padding: 6px 4px 2px;
+  text-align: center;
+}
+.fb-done-mark {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 1px solid rgba(110, 231, 183, 0.42);
+  background: rgba(16, 185, 129, 0.12);
+  color: #6ee7b7;
+  font-size: 1.5rem;
+  line-height: 1;
+  box-shadow: 0 0 24px rgba(16, 185, 129, 0.28);
+}
+.fb-done h2 { margin: 0; font-size: 1.12rem; letter-spacing: 0.06em; }
+.fb-done-text {
+  margin: 0;
+  max-width: 32em;
+  font-size: 0.84rem;
+  line-height: 1.65;
+  color: var(--muted);
+}
+.fb-done-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 3px;
+}
+.fb-btn {
+  padding: 11px 26px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: color 0.25s ease, background 0.25s ease, border-color 0.25s ease,
+              box-shadow 0.25s ease;
+}
+.fb-btn--ghost {
+  border: 1px solid rgba(147, 166, 196, 0.34);
+  background: transparent;
+  color: #cfe6ff;
+}
+.fb-btn--ghost:hover, .fb-btn--ghost:focus-visible {
+  outline: none;
+  color: #fff;
+  border-color: rgba(125, 211, 252, 0.6);
+  background: rgba(120, 170, 255, 0.12);
+}
+.fb-btn--primary {
+  border: 1px solid transparent;
+  background: linear-gradient(120deg, #7dd3fc, #a855f7);
+  color: #04121c;
+}
+.fb-btn--primary:hover, .fb-btn--primary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 26px rgba(120, 170, 255, 0.55);
+}
+.fb-done-note { margin: 0; font-size: 0.72rem; line-height: 1.6; color: var(--muted); }
+.fb-live { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
 @media (max-width: 860px) {
   /* 窄屏顶栏只有站名一行（高 41px），节点环按顶栏下沿排布。
      按钮若留在文档流里会把顶栏撑到 57px、把整个环往下推，
@@ -1335,7 +1410,7 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
 <div class="fb-overlay" id="fbOverlay" role="dialog" aria-modal="true" aria-labelledby="fbTitle">
   <div class="fb-card" id="fbCard">
     <div class="fb-head">
-      <div>
+      <div class="fb-head-copy">
         <h2 id="fbTitle">留个反馈</h2>
         <p>页面、内容、排版哪里不对劲，或者想加点什么，都欢迎写在这里，我会认真看。</p>
       </div>
@@ -1388,6 +1463,19 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
       </div>
       <p class="fb-note" id="fbNote">提交后直接写入我的私有反馈库，公网读不到，只有我能看见。</p>
     </form>
+
+    <!-- 反馈成功页：替换表单显示，底部两个出口「关闭窗口 / 再来一条」 -->
+    <div class="fb-done" id="fbDone" hidden>
+      <span class="fb-done-mark" aria-hidden="true">✓</span>
+      <h2 id="fbDoneTitle">反馈成功</h2>
+      <p class="fb-done-text">已经写进我的反馈库了，谢谢你花时间写这条反馈，我会认真看。</p>
+      <div class="fb-done-actions">
+        <button class="fb-btn fb-btn--ghost" id="fbDoneClose" type="button">关闭窗口</button>
+        <button class="fb-btn fb-btn--primary" id="fbDoneAgain" type="button">再来一条</button>
+      </div>
+      <p class="fb-done-note">同一个浏览器两次提交间隔 30 秒，稍等一下就能再写一条。</p>
+    </div>
+    <p class="fb-live" id="fbLive" role="status" aria-live="polite"></p>
   </div>
 </div>
 
@@ -2156,7 +2244,10 @@ var fbCount    = document.getElementById('fbCount');
 var fbTrap     = document.getElementById('fbTrap');
 var fbOpenBtn  = document.querySelector('[data-feedback-open]');
 var fbLastFocus = null;
-var fbDone = false;                 // 已提交成功：提交按钮变成「关闭」
+var fbDone = false;                 // 已提交成功：卡片整屏切到「反馈成功」页
+var fbCard     = document.getElementById('fbCard');
+var fbDoneView = document.getElementById('fbDone');
+var fbLive     = document.getElementById('fbLive');
 
 function fbDatabase() { return window.FEEDBACK_DB_TEST || FEEDBACK_DB; }
 
@@ -2237,6 +2328,41 @@ function fbReset() {
   fbDone = false;
   if (fbSubmit) { fbSubmit.textContent = '提交'; fbSubmit.disabled = !fbConfigured(); }
   fbSetStatus('');
+  fbShowForm();
+}
+
+/* 表单视图 ←→ 反馈成功视图：成功页是独立一屏，而不是只把提交按钮改名 */
+function fbShowForm() {
+  if (fbForm) fbForm.hidden = false;
+  if (fbDoneView) fbDoneView.hidden = true;
+  if (fbCard) {
+    fbCard.classList.remove('is-done');
+    fbCard.setAttribute('aria-labelledby', 'fbTitle');
+  }
+  if (fbLive) fbLive.textContent = '';
+}
+
+function fbShowDone() {
+  if (fbForm) fbForm.hidden = true;
+  if (fbDoneView) fbDoneView.hidden = false;
+  if (fbCard) {
+    fbCard.classList.add('is-done');
+    // 成功页里标题块是隐藏的，aria-labelledby 要指向可见的那一个
+    fbCard.setAttribute('aria-labelledby', 'fbDoneTitle');
+  }
+  if (fbLive) fbLive.textContent = '反馈成功，已收到你的反馈。';
+  // 焦点落在「关闭」上：键盘用户按一次回车就能退出
+  var closeBtn = document.getElementById('fbDoneClose');
+  if (closeBtn) setTimeout(function () { closeBtn.focus(); }, 60);
+}
+
+/* 距离下次可提交还剩多少秒（0 表示现在就能提） */
+function fbCooldownLeft() {
+  var last = 0;
+  try { last = Number(localStorage.getItem('fbLastAt') || 0); } catch (_) {}
+  if (!last) return 0;
+  var left = FEEDBACK_COOLDOWN_MS - (Date.now() - last);
+  return left > 0 ? Math.ceil(left / 1000) : 0;
 }
 
 function fbOpen() {
@@ -2300,8 +2426,8 @@ function fbSucceed() {
   fbForm.reset();
   fbClearErrors();
   if (fbCount) fbCount.textContent = '0 / 2000';
-  fbSetStatus('已收到，谢谢你的反馈！', 'ok');
-  if (fbSubmit) { fbSubmit.textContent = '关闭'; fbSubmit.disabled = false; }
+  fbSetStatus('');
+  fbShowDone();
 }
 
 if (fbOpenBtn) {
@@ -2312,6 +2438,23 @@ if (fbOverlay) {
   fbOverlay.addEventListener('click', function (e) { if (e.target === fbOverlay) fbClose(); });
   var fbCloseBtn = document.getElementById('fbClose');
   if (fbCloseBtn) fbCloseBtn.addEventListener('click', function (e) { e.preventDefault(); fbClose(); });
+
+  // 成功页出口：关闭 = 走人；再来一条 = 回到空白表单（还在冷却里就先把等多久说清楚）
+  var fbDoneCloseBtn = document.getElementById('fbDoneClose');
+  if (fbDoneCloseBtn) {
+    fbDoneCloseBtn.addEventListener('click', function (e) { e.preventDefault(); fbClose(); });
+  }
+  var fbDoneAgainBtn = document.getElementById('fbDoneAgain');
+  if (fbDoneAgainBtn) {
+    fbDoneAgainBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      fbReset();
+      var left = fbCooldownLeft();
+      if (left) fbSetStatus('两次提交间隔 30 秒，大约 ' + left + ' 秒后就能再写一条。');
+      var first = document.getElementById('fbNickname');
+      if (first) setTimeout(function () { first.focus(); }, 60);
+    });
+  }
 }
 
 if (fbForm) {
@@ -2334,8 +2477,8 @@ if (fbForm) {
     e.preventDefault();
     e.stopPropagation();
 
-    // 已提交成功：这一次点击当作「关闭」
-    if (fbDone) { fbClose(); fbReset(); return; }
+    // 成功页已就位（表单此时是隐藏的），这一次点击不再当提交处理
+    if (fbDone) return;
     if (fbSubmit && fbSubmit.disabled) return;
 
     // 蜜罐：真人不会填，填了就当作机器人，静默丢弃
@@ -2358,11 +2501,9 @@ if (fbForm) {
       return;
     }
 
-    var last = 0;
-    try { last = Number(localStorage.getItem('fbLastAt') || 0); } catch (_) {}
-    if (last && Date.now() - last < FEEDBACK_COOLDOWN_MS) {
-      var wait = Math.ceil((FEEDBACK_COOLDOWN_MS - (Date.now() - last)) / 1000);
-      fbSetStatus('刚收到你的反馈啦，' + wait + ' 秒后可以再提交一条。', 'err');
+    var left = fbCooldownLeft();
+    if (left) {
+      fbSetStatus('刚收到你的反馈啦，' + left + ' 秒后可以再提交一条。', 'err');
       return;
     }
 
