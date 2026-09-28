@@ -1186,6 +1186,239 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
   .fb-textarea { min-height: 72px; }
   .fb-device span { padding: 7px 13px; font-size: 0.82rem; }
 }
+
+/* ============================================================
+   My copilot：初始界面正中心的问答入口（阶段 0 = 本地关键词版）
+   入口是 fixed 的独立按钮，不挂在 .topbar / .panels 里：概览态的中央本来就
+   刻意留空（见 JS 的 overviewPos 注释），按钮落在这里不与任何节点抢位置。
+   用 html[data-phase] 控制「只在初始页面可用」——离开概览态就整块淡出，
+   所以访客只有站在初始界面上才叫得出它。
+   浮层外壳直接复用 .fb-overlay / .fb-card / .fb-head / .fb-close（含窄屏规则），
+   这里只写对话区自己的样式。
+   ============================================================ */
+.cb-entry {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 5;                    /* 盖住节点层(3)与面板层(4)，低于顶栏(20)、浮层(60) */
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.42);
+  background: radial-gradient(120% 160% at 20% 0%, rgba(56, 189, 248, 0.2), rgba(8, 14, 28, 0.78));
+  color: #dcecff;
+  font-family: inherit;
+  font-size: 0.92rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.94);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  transition: opacity 0.35s ease, visibility 0.35s ease, transform 0.35s ease,
+              color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+html[data-phase="overview"] .cb-entry {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+}
+/* 小圆点呼应底部提示的呼吸点，暗示「这里可以点」 */
+.cb-entry::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: linear-gradient(120deg, #7dd3fc, #a855f7);
+  box-shadow: 0 0 12px rgba(120, 170, 255, 0.8);
+  animation: cbDot 2.4s ease-in-out infinite;
+}
+@keyframes cbDot {
+  0%, 100% { opacity: 0.4; transform: scale(0.82); }
+  50%      { opacity: 1;   transform: scale(1.1); }
+}
+.cb-entry:hover, .cb-entry:focus-visible {
+  outline: none;
+  color: #04121c;
+  font-weight: 600;
+  border-color: transparent;
+  background: linear-gradient(120deg, #7dd3fc, #a855f7);
+  box-shadow: 0 0 30px rgba(120, 170, 255, 0.5);
+}
+
+.cb-head-copy { min-width: 0; }
+.cb-log {
+  display: grid;
+  gap: 10px;
+  max-height: min(46vh, 380px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px;
+}
+.cb-msg {
+  max-width: 88%;
+  padding: 10px 13px;
+  border-radius: 14px;
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
+.cb-msg--bot {
+  justify-self: start;
+  border: 1px solid rgba(147, 166, 196, 0.22);
+  border-top-left-radius: 5px;
+  background: rgba(10, 17, 32, 0.92);
+  color: #dfe9fb;
+}
+.cb-msg--me {
+  justify-self: end;
+  border: 1px solid rgba(125, 211, 252, 0.34);
+  border-top-right-radius: 5px;
+  background: linear-gradient(120deg, rgba(56, 189, 248, 0.22), rgba(168, 85, 247, 0.22));
+  color: #eaf4ff;
+}
+.cb-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.cb-jump, .cb-handoff {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.42);
+  background: rgba(56, 189, 248, 0.1);
+  color: #cfe6ff;
+  font-family: inherit;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: color 0.25s ease, background 0.25s ease, border-color 0.25s ease,
+              box-shadow 0.25s ease;
+}
+.cb-handoff {
+  border-color: transparent;
+  background: linear-gradient(120deg, #7dd3fc, #a855f7);
+  color: #04121c;
+  font-weight: 600;
+}
+.cb-jump:hover, .cb-jump:focus-visible, .cb-handoff:hover, .cb-handoff:focus-visible {
+  outline: none;
+  box-shadow: 0 0 24px rgba(120, 170, 255, 0.5);
+}
+.cb-jump:hover, .cb-jump:focus-visible {
+  color: #fff;
+  border-color: rgba(125, 211, 252, 0.8);
+  background: rgba(120, 170, 255, 0.16);
+}
+
+.cb-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.cb-chip {
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px dashed rgba(147, 166, 196, 0.42);
+  background: transparent;
+  color: #b9cae8;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: color 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+}
+.cb-chip:hover, .cb-chip:focus-visible {
+  outline: none;
+  color: #fff;
+  border-style: solid;
+  border-color: rgba(125, 211, 252, 0.7);
+  background: rgba(120, 170, 255, 0.12);
+}
+
+.cb-ask { display: flex; gap: 8px; margin-top: 12px; }
+.cb-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 11px 13px;
+  border-radius: 11px;
+  border: 1px solid rgba(147, 166, 196, 0.26);
+  background: rgba(6, 11, 22, 0.85);
+  color: #eaf2ff;
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.cb-input::placeholder { color: rgba(147, 166, 196, 0.62); }
+.cb-input:focus {
+  outline: none;
+  border-color: rgba(125, 211, 252, 0.72);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16);
+}
+.cb-send {
+  flex: none;
+  padding: 0 18px;
+  border-radius: 11px;
+  border: 1px solid transparent;
+  background: linear-gradient(120deg, #7dd3fc, #a855f7);
+  color: #04121c;
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.cb-send:hover, .cb-send:focus-visible {
+  outline: none;
+  box-shadow: 0 0 24px rgba(120, 170, 255, 0.5);
+}
+.cb-note { margin: 11px 0 0; font-size: 0.72rem; line-height: 1.6; color: var(--muted); }
+
+/* 「My copilot」几个字：星空紫渐变 + 缓慢流光 + 呼吸辉光（纯文字，不额外加盒子） */
+.cb-shine { color: #c4b5fd; }   /* 兜底：不支持「渐变裁字」的浏览器显示淡紫实字，而不是透明 */
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .cb-shine {
+    background-image: linear-gradient(100deg,
+        #c4b5fd 0%, #a855f7 18%, #f0abfc 34%, #e9d5ff 46%,
+        #7dd3fc 58%, #a855f7 74%, #c4b5fd 100%);
+    background-size: 260% 100%;
+    background-position: 0% 50%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: cbShine 7s linear infinite, cbGlow 2.8s ease-in-out infinite;
+  }
+}
+@keyframes cbShine {
+  from { background-position: 0% 50%; }
+  to   { background-position: 260% 50%; }   /* 首尾同色，回绕看不出接缝 */
+}
+@keyframes cbGlow {
+  0%, 100% { filter: drop-shadow(0 0 3px rgba(168, 85, 247, 0.5)); }
+  50%      { filter: drop-shadow(0 0 10px rgba(196, 181, 253, 0.9)); }
+}
+/* 入口按钮 hover/focus 会反相（底变亮、字变深），这时「My copilot」要回到实色，否则糊在亮底上 */
+.cb-entry:hover .cb-shine,
+.cb-entry:focus-visible .cb-shine,
+.cb-entry:active .cb-shine {
+  background-image: none;
+  color: #04121c;
+  -webkit-text-fill-color: currentColor;
+  animation: none;
+  filter: none;
+}
+
+@media (max-width: 860px) {
+  .cb-entry { padding: 10px 17px; font-size: 0.86rem; letter-spacing: 0.08em; }
+  .cb-log { max-height: min(42vh, 300px); }
+  .cb-msg { max-width: 94%; }
+}
+@media (max-width: 860px) and (max-height: 560px) {
+  .cb-log { max-height: 32vh; }
+  .cb-chips { margin-top: 9px; }
+  .cb-ask { margin-top: 9px; }
+  .cb-note { margin-top: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cb-entry::before { animation: none; }
+  .cb-shine { animation: none; }   /* 保留星空紫渐变，只是不动 */
+}
 </style>
 </head>
 <body>
@@ -1406,6 +1639,9 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
 
 <p class="hint" id="hint">点击任意名称，进入部署视角</p>
 
+<!-- 问答入口：坐在初始界面正中心（概览态中央本来就留空），离开概览态即淡出 -->
+<button class="cb-entry" id="cbEntry" type="button" aria-haspopup="dialog"><span class="cb-shine">My copilot</span></button>
+
 <!-- ============ 反馈浮层：昵称(必填) / 与我关系(选填) / 所用设备(必选) / 反馈内容(必填) ============ -->
 <div class="fb-overlay" id="fbOverlay" role="dialog" aria-modal="true" aria-labelledby="fbTitle">
   <div class="fb-card" id="fbCard">
@@ -1476,6 +1712,36 @@ a.contact-value:hover { color: #7dd3fc; text-decoration: underline; }
       <p class="fb-done-note">同一个浏览器两次提交间隔 30 秒，稍等一下就能再写一条。</p>
     </div>
     <p class="fb-live" id="fbLive" role="status" aria-live="polite"></p>
+  </div>
+</div>
+
+<!-- ============ My copilot 浮层：阶段 0 的静态问答（外壳复用 .fb-* 那套） ============ -->
+<div class="fb-overlay cb-overlay" id="cbOverlay" role="dialog" aria-modal="true" aria-labelledby="cbTitle">
+  <div class="fb-card cb-card" id="cbCard">
+    <div class="fb-head">
+      <div class="cb-head-copy">
+        <h2 id="cbTitle"><span class="cb-shine">My copilot</span></h2>
+        <p>站上公开信息的问答助手。现在还是<b>本地关键词版</b>：答案都是提前写好的，认不出来的问题会请你留言。</p>
+      </div>
+      <button class="fb-close" id="cbClose" type="button" aria-label="关闭问答">✕</button>
+    </div>
+
+    <div class="cb-log" id="cbLog" role="log" aria-live="polite" aria-relevant="additions text"></div>
+
+    <div class="cb-chips" id="cbChips" aria-label="常见问题">
+      <button class="cb-chip" type="button" data-cb-ask="你是谁">你是谁</button>
+      <button class="cb-chip" type="button" data-cb-ask="现在在哪读书、学什么">在哪读书、学什么</button>
+      <button class="cb-chip" type="button" data-cb-ask="有什么爱好">有什么爱好</button>
+      <button class="cb-chip" type="button" data-cb-ask="有什么作品">有什么作品</button>
+      <button class="cb-chip" type="button" data-cb-ask="怎么联系你">怎么联系</button>
+    </div>
+
+    <form class="cb-ask" id="cbAsk" novalidate>
+      <input class="cb-input" id="cbInput" type="text" maxlength="60" autocomplete="off" placeholder="也可以自己打一句试试">
+      <button class="cb-send" type="submit">发送</button>
+    </form>
+
+    <p class="cb-note" id="cbNote">阶段 0：还没接模型，靠关键词命中站上已有的公开信息；认不出来的会转给「留个反馈」。</p>
   </div>
 </div>
 
@@ -2524,6 +2790,266 @@ if (fbForm) {
   });
 }
 
+/* ============================================================
+   4b) My copilot：初始界面正中心的问答入口（阶段 0 = 本地关键词版）
+   ------------------------------------------------------------
+   入口按钮只在概览态（html[data-phase="overview"]）出现，所以访客只有站在
+   初始界面上才叫得出它；进入聚焦/详情后按钮随概览态一起淡出。
+   阶段 0 没有后端：答案写死在 COPILOT_QA 里，靠关键词命中（cbMatch），
+   命中不了就引导到反馈浮层留言（fbOpen）。
+   阶段 1 接上 Supabase Edge Function 后，只要把 cbAnswer() 换成 fetch，
+   入口、浮层、键盘交互都不用动。
+   自测钩子：window.COPILOT_TEST
+   ============================================================ */
+var cbOverlay = document.getElementById('cbOverlay');
+var cbCard    = document.getElementById('cbCard');
+var cbLog     = document.getElementById('cbLog');
+var cbAsk     = document.getElementById('cbAsk');
+var cbInput   = document.getElementById('cbInput');
+var cbChips   = document.getElementById('cbChips');
+var cbEntry   = document.getElementById('cbEntry');
+
+var cbLastFocus = null;
+var cbGreeted = false;
+
+/* 知识库：只写站上已经公开的信息，不猜、不编。
+   k = 命中关键词（统一小写去标点后做子串匹配，长短词都写几个以覆盖不同问法）
+   go = 回答下方的「带我去看」跳到哪个分区
+   handoff = 回答下方给一个「留言给我」出口 */
+var COPILOT_QA = [
+  {
+    q: '你是谁',
+    k: ['你是谁', '叫什么', '名字', '本人', 'who', 'name', '自我介绍', '介绍一下'],
+    a: '王俊洋 · David Wang。恋旧林的羁鸟，思故渊的池鱼——正在学智能医学工程，想把技术用在生命健康上。',
+    go: 'hero'
+  },
+  {
+    q: '现在在哪读书、学什么',
+    k: ['在哪读书', '学什么', '学的是', '专业', 'major', '大学', '读书', '大一', '大几', '几年级', '年级', '天津大学', '理工大学', '深圳'],
+    a: '天津大学香港理工大学深圳未来技术学院，智能医学工程专业（Biomedical Engineering），2026 年入学，现在大一；关注生物医学与人工智能的交叉方向。',
+    go: 'about'
+  },
+  {
+    q: '教育经历',
+    k: ['教育', '学历', '履历', '经历', '时间线', '高中', '初中', '小学', '学校', 'school', '八中', '79中', '七十九'],
+    a: '2026 至今 · 天津大学香港理工大学深圳未来技术学院（智能医学工程）；2023–2026 · 大连市第八中学；2020–2023 · 大连市第79中学；2014–2020 · 大连市第79中学附属小学。',
+    go: 'education'
+  },
+  {
+    q: '有什么爱好',
+    k: ['爱好', '兴趣', '喜欢', '平时', '足球', '台球', '桌游', 'vocaloid', '音乐', 'hobby'],
+    a: '足球、台球、VOCALOID、桌游——喜欢运动与音乐，也爱和朋友面对面玩桌游。',
+    go: 'hobbies'
+  },
+  {
+    q: '有什么作品',
+    k: ['作品', '项目', '比赛', '一等奖', '奖', '果酒', '证书', 'project', '做得'],
+    a: '高中在校科技艺术文化节做过生物比赛项目（果酒制作），2025 年拿了一等奖，证书就放在「作品」那一栏；更多项目还在整理。',
+    go: 'projects'
+  },
+  {
+    q: '怎么联系你',
+    k: ['联系', '邮箱', 'email', '邮件', 'github', '社交', '微信', '找你', 'contact'],
+    a: 'GitHub：github.com/stardust-david；邮箱：3026445011@tju.edu.cn。其他社交账号还在补充。',
+    go: 'contact'
+  },
+  {
+    q: '这个网站怎么用',
+    k: ['怎么用', '怎么玩', '导航', '怎么看', '玩法', '教程', 'how'],
+    a: '点屏幕上任意一个名称（关于我 / 简介 / 爱好 / 作品 / 教育 / 联系）进入部署视角，再点一次展开内容；Esc 逐级返回，也可以用左右方向键在分区之间切换。'
+  },
+  {
+    q: '这个网站是怎么做的',
+    k: ['网站怎么', '站是', '技术', '前端', '框架', '代码', '怎么做', 'canvas', 'html'],
+    a: '这个站是手写的 HTML / CSS / JS 单页：Canvas 星空背景、用视频填充的标题（Video Text）、神经元式的节点导航；反馈数据走 Supabase，没有用前端框架。'
+  },
+  {
+    q: '你是 AI 吗',
+    k: ['ai', '机器人', '真人', '模型', 'copilot', '助手', '人工智能', '自动回复', '你是'],
+    a: '我是这个站上的问答助手。现在还是阶段 0：靠本地关键词匹配，答案都是提前写好的；以后会接上模型，就能答得更灵活。'
+  },
+  {
+    q: '你好',
+    k: ['你好', '您好', '哈喽', 'hello', '在吗', '嗨'],
+    a: '你好，我是这个站上的问答助手。学校、专业、爱好、作品、联系方式都可以问我；也可以自己打一句试试。'
+  },
+  {
+    q: '想提意见或反馈',
+    k: ['反馈', '建议', '留言', '意见', '吐槽', 'bug', '改进', 'feedback'],
+    a: '那走「留个反馈」最直接：内容会写进我的私有反馈库，公网读不到，只有我能看见。',
+    handoff: true
+  }
+];
+
+/* 统一小写 + 去掉空白与标点，让「你是谁？」「你是谁」「你是谁!」都能命中 */
+function cbNormalize(s) {
+  return String(s == null ? '' : s)
+    .toLowerCase()
+    .replace(/[\s，。、？！：；,.?!:;~～…·'"“”‘’()（）\[\]【】<>《》/\\|@#$%^&*_+=-]/g, '');
+}
+
+/* 命中一个关键词 +2；整句与预设问法完全一致再多 +6。0 分就是「认不出来」 */
+function cbScore(text, item) {
+  var score = 0;
+  for (var i = 0; i < item.k.length; i++) {
+    var k = cbNormalize(item.k[i]);
+    if (k && text.indexOf(k) >= 0) score += 2;
+  }
+  if (cbNormalize(item.q) === text) score += 6;
+  return score;
+}
+
+function cbMatch(text) {
+  var q = cbNormalize(text);
+  if (!q) return null;
+  var best = null, bestScore = 0;
+  COPILOT_QA.forEach(function (item) {
+    var s = cbScore(q, item);
+    if (s > bestScore) { bestScore = s; best = item; }
+  });
+  return bestScore >= 2 ? best : null;
+}
+
+function cbSectionName(id) {
+  var hit = SECTIONS.filter(function (s) { return s.id === id; })[0];
+  return hit ? hit.name : '';
+}
+
+function cbIsOpen() { return !!cbOverlay && cbOverlay.classList.contains('is-open'); }
+
+/* 往对话区追加一条气泡：kind = 'bot' | 'me'，actions = 气泡下方的出口按钮 */
+function cbPush(kind, text, actions) {
+  if (!cbLog) return null;
+  var msg = document.createElement('div');
+  msg.className = 'cb-msg cb-msg--' + kind;
+  msg.appendChild(document.createTextNode(text));
+  if (actions && actions.length) {
+    var box = document.createElement('div');
+    box.className = 'cb-actions';
+    actions.forEach(function (act) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = act.handoff ? 'cb-handoff' : 'cb-jump';
+      btn.textContent = act.label;
+      if (act.goto) btn.setAttribute('data-goto', act.goto);
+      if (act.handoff) btn.setAttribute('data-cb-handoff', '');
+      box.appendChild(btn);
+    });
+    msg.appendChild(box);
+  }
+  cbLog.appendChild(msg);
+  cbLog.scrollTop = cbLog.scrollHeight;
+  return msg;
+}
+
+function cbAnswer(text) {
+  var hit = cbMatch(text);
+  if (!hit) {
+    cbPush('bot', '这条我答不上来。现在的我只会站上已经公开的信息——学校、专业、爱好、作品、联系方式，你可以换个问法，或者直接留言给我。', [
+      { label: '留言给我 →', handoff: true }
+    ]);
+    return;
+  }
+  var actions = [];
+  if (hit.go) actions.push({ label: '带我去看「' + cbSectionName(hit.go) + '」→', goto: hit.go });
+  if (hit.handoff) actions.push({ label: '留言给我 →', handoff: true });
+  cbPush('bot', hit.a, actions);
+}
+
+function cbAskQuestion(text) {
+  var t = String(text == null ? '' : text).trim().slice(0, 60);
+  if (!t) {
+    cbPush('bot', '先打一句想问的，或者点上面的问题试试。');
+    if (cbInput) cbInput.focus();
+    return;
+  }
+  cbPush('me', t);
+  cbAnswer(t);
+}
+
+function cbEntryShown() {
+  return document.documentElement.getAttribute('data-phase') === 'overview';
+}
+
+function cbOpen() {
+  if (!cbOverlay) return;
+  cbLastFocus = document.activeElement;
+  cbOverlay.classList.add('is-open');
+  if (!cbGreeted) { cbGreeted = true; cbPush('bot', '你好，我是这个站上的问答助手。学校、专业、爱好、作品、联系方式都可以问我；也可以自己打一句试试。'); }
+  if (cbInput) setTimeout(function () { cbInput.focus(); }, 60);
+}
+
+function cbClose() {
+  if (!cbOverlay) return;
+  cbOverlay.classList.remove('is-open');
+  // 焦点还给触发它的按钮；若它已随概览态淡出（比如点「带我去看」跳走了），就不再抢焦点
+  var back = cbLastFocus;
+  if (back === cbEntry && !cbEntryShown()) back = null;
+  if (back && back.focus) back.focus();
+}
+
+/* Tab 键锁在卡片内（与反馈浮层同一套做法） */
+function cbTrapFocus(e) {
+  if (!cbCard) return;
+  var nodes = cbCard.querySelectorAll('button, input, textarea, [href]');
+  var list = Array.prototype.filter.call(nodes, function (el) {
+    return el.tabIndex >= 0 && el.offsetParent !== null;
+  });
+  if (!list.length) return;
+  var first = list[0], last = list[list.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+
+if (cbEntry) {
+  cbEntry.addEventListener('click', function (e) { e.preventDefault(); cbOpen(); });
+}
+
+if (cbOverlay) {
+  cbOverlay.addEventListener('click', function (e) { if (e.target === cbOverlay) cbClose(); });
+  var cbCloseBtn = document.getElementById('cbClose');
+  if (cbCloseBtn) cbCloseBtn.addEventListener('click', function (e) { e.preventDefault(); cbClose(); });
+}
+
+if (cbChips) {
+  cbChips.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('[data-cb-ask]') : null;
+    if (!b) return;
+    e.preventDefault();
+    cbAskQuestion(b.getAttribute('data-cb-ask'));
+  });
+}
+
+if (cbLog) {
+  cbLog.addEventListener('click', function (e) {
+    var el = e.target;
+    // 出口二：转成留言（先收起问答浮层，焦点会落到中心按钮上，再交给反馈浮层）
+    if (el.closest && el.closest('[data-cb-handoff]')) { e.preventDefault(); cbClose(); fbOpen(); return; }
+    // 出口一：「带我去看」交给全局的 [data-goto] 处理，这里只负责把浮层先收掉
+    if (el.closest && el.closest('[data-goto]')) cbClose();
+  });
+}
+
+if (cbAsk) {
+  cbAsk.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = cbInput ? cbInput.value : '';
+    if (cbInput) cbInput.value = '';
+    cbAskQuestion(v);
+  });
+}
+
+/* 桩测试钩子：不改本文件就能验证命中与开合（阶段 1 换模型后同样保留） */
+window.COPILOT_TEST = {
+  qa: COPILOT_QA,
+  match: function (text) { var hit = cbMatch(text); return hit ? hit.q : null; },
+  ask: cbAskQuestion,
+  open: cbOpen,
+  close: cbClose,
+  isOpen: cbIsOpen,
+  log: cbLog
+};
+
 /* 预热触发：鼠标扫过或键盘聚焦到分区节点时，就提前开始缓冲它的视频。
    等面板真正展开，画面往往已经在播了，标题不会长时间停在静态首帧。*/
 function nodeIdFrom(e) {
@@ -2559,14 +3085,19 @@ document.addEventListener('click', function (e) {
     return;
   }
 
-  // 点击空白处 = 回退一步（面板 / 顶栏 / 反馈浮层内部的点击不算）
-  if (el.closest && el.closest('.panel, .topbar, .fb-overlay')) return;
+  // 点击空白处 = 回退一步（面板 / 顶栏 / 浮层 / 中心问答入口上的点击不算）
+  if (el.closest && el.closest('.panel, .topbar, .fb-overlay, .cb-entry')) return;
   stepBack();
 });
 
 /* 键盘：Esc 逐级后退；左右方向键在分区之间移动 */
 document.addEventListener('keydown', function (e) {
-  // 反馈浮层打开时，键盘全部让给表单：Esc 关浮层、Tab 锁在卡片内、方向键留给输入框
+  // 浮层打开时键盘全权让给浮层：Esc 关浮层、Tab 锁在卡片内、方向键留给输入框
+  if (cbIsOpen()) {
+    if (e.key === 'Escape') { e.preventDefault(); cbClose(); }
+    else if (e.key === 'Tab') { cbTrapFocus(e); }
+    return;
+  }
   if (fbIsOpen()) {
     if (e.key === 'Escape') { e.preventDefault(); fbClose(); }
     else if (e.key === 'Tab') { fbTrapFocus(e); }
