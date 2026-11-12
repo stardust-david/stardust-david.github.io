@@ -2790,13 +2790,13 @@ if (fbForm) {
 }
 
 /* ============================================================
-   4b) My copilot：初始界面正中心的问答入口（阶段 0 = 本地关键词版）
+   4b) My copilot：初始界面正中心的问答入口（阶段 1 = 接模型）
    ------------------------------------------------------------
    入口按钮只在概览态（html[data-phase="overview"]）出现，所以访客只有站在
    初始界面上才叫得出它；进入聚焦/详情后按钮随概览态一起淡出。
-   阶段 0 没有后端：答案写死在 COPILOT_QA 里，靠关键词命中（cbMatch），
-   命中不了就引导到反馈浮层留言（fbOpen）。
-   阶段 1 接上 Supabase Edge Function 后，只要把 cbAnswer() 换成 fetch，
+   阶段 1：请求 Supabase Edge Function（内部调百炼 qwen-plus），语料与说话
+   规则都在服务端，前端不碰 key。网络不通或接口不可用时退回 COPILOT_QA 的
+   本地关键词版，再退回引导留言，访客不会看到白屏。
    入口、浮层、键盘交互都不用动。
    自测钩子：window.COPILOT_TEST
    ============================================================ */
@@ -2912,12 +2912,12 @@ var COPILOT_QA = [
   {
     q: '你是 AI 吗',
     k: ['ai', '机器人', '真人', '模型', 'copilot', '助手', '人工智能', '自动回复', '你是'],
-    a: '我是这个站上的问答助手。现在还是阶段 0：靠本地关键词匹配，答案都是提前写好的；以后会接上模型，就能答得更灵活。'
+    a: '我是这个站上的数字分身，背后接的是大模型。资料和说话规则都是我自己整理的，哪些不答也是我自己定的。'
   },
   {
     q: '你好',
     k: ['你好', '您好', '哈喽', 'hello', '在吗', '嗨'],
-    a: '你好，我是这个站上的问答助手。学校、专业、爱好、作品、联系方式都可以问我；也可以自己打一句试试。'
+    a: '你好，我是王俊洋的数字分身。学校、专业、爱好、作品、联系方式都可以问我；也可以自己打一句试试。'
   },
   {
     q: '想提意见或反馈',
@@ -2988,18 +2988,112 @@ function cbPush(kind, text, actions) {
   return msg;
 }
 
-function cbAnswer(text) {
+/* ---------- 阶段 1：模型接口 ---------- */
+var CB_ENDPOINT = 'https://vqvsachtgfaajezfjlox.supabase.co/functions/v1/copilot';
+var cbHistory = [];      // [{role:'user'|'assistant', content:'...'}]
+var cbPending = false;   // 防连点
+var cbFails = 0;         // 连续失败计数
+var CB_MAX_FAILS = 3;    // 超过就本次会话不再请求，避免每次白等
+
+function cbSetText(msg, text) {
+  if (!msg) return;
+  // cbPush 的第一个子节点就是文本节点，直接改它，不会破坏 actions 按钮
+  if (msg.firstChild && msg.firstChild.nodeType === 3) msg.firstChild.nodeValue = text;
+  else msg.textContent = text;
+  if (cbLog) cbLog.scrollTop = cbLog.scrollHeight;
+}
+
+/* 本地兜底：沿用关键词命中，命中不了返回 null */
+function cbLocalAnswer(text) {
   var hit = cbMatch(text);
-  if (!hit) {
-    cbPush('bot', '这条我答不上来。现在的我只会站上已经公开的信息——学校、专业、爱好、作品、联系方式，你可以换个问法，或者直接留言给我。', [
-      { label: '留言给我 →', handoff: true }
-    ]);
+  return hit ? hit.a : null;
+}
+
+/* 兜底气泡：本地有答案就用，没有就给留言入口 */
+function cbFallback(holder, text) {
+  var local = cbLocalAnswer(text);
+  if (local) {
+    cbSetText(holder, local);
     return;
   }
-  var actions = [];
-  if (hit.go) actions.push({ label: '带我去看「' + cbSectionName(hit.go) + '」→', goto: hit.go });
-  if (hit.handoff) actions.push({ label: '留言给我 →', handoff: true });
-  cbPush('bot', hit.a, actions);
+  cbSetText(holder, '这会儿连不上，先留个言吧，我回头一定看到。');
+  var box = document.createElement('div');
+  box.className = 'cb-actions';
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'cb-handoff';
+  btn.textContent = '留言给我 →';
+  btn.setAttribute('data-cb-handoff', '');
+  box.appendChild(btn);
+  holder.appendChild(box);
+}
+
+function cbAnswer(text) {
+  // 接口未配置，或本次会话已判定不可用 → 纯本地
+  if (!CB_ENDPOINT || cbFails >= CB_MAX_FAILS) {
+    var local = cbLocalAnswer(text);
+    cbPush('bot', local || '这条我答不上来，换个问法试试。');
+    return;
+  }
+
+  if (cbPending) return;
+  cbPending = true;
+
+  var holder = cbPush('bot', '正在想…');
+  var timer = setTimeout(function () {
+    cbSetText(holder, '还在想，稍等一下…');
+  }, 6000);
+
+  fetch(CB_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message: text,
+      history: cbHistory.slice(-6)
+    })
+  })
+    .then(function (res) {
+      return res.json()
+        .catch(function () { return {}; })
+        .then(function (data) { return { ok: res.ok, status: res.status, data: data }; });
+    })
+    .then(function (r) {
+      if (!r.ok || !r.data || !r.data.reply) {
+        var err = new Error((r.data && r.data.error) || ('HTTP ' + r.status));
+        err.status = r.status;
+        throw err;
+      }
+      clearTimeout(timer);
+      cbFails = 0;
+      cbSetText(holder, r.data.reply);
+      cbHistory.push({ role: 'user', content: text });
+      cbHistory.push({ role: 'assistant', content: r.data.reply });
+      if (cbHistory.length > 12) cbHistory = cbHistory.slice(-12);
+    })
+    .catch(function (err) {
+      clearTimeout(timer);
+      cbFails += 1;
+
+      // 4xx 是请求本身的问题，不计入服务不可用
+      if (err.status === 429 && err.message) {
+        cbSetText(holder, err.message);
+        return;
+      }
+      if (err.status === 400) {
+        cbSetText(holder, '这个问法我处理不了，换个说法试试。');
+        return;
+      }
+
+      if (cbFails >= CB_MAX_FAILS) {
+        console.warn('[copilot] 接口连续失败，本次会话切回本地模式');
+      } else if (window.console) {
+        console.warn('[copilot]', err && err.message);
+      }
+      cbFallback(holder, text);
+    })
+    .then(function () {
+      cbPending = false;
+    });
 }
 
 function cbAskQuestion(text) {
@@ -3021,7 +3115,7 @@ function cbOpen() {
   if (!cbOverlay) return;
   cbLastFocus = document.activeElement;
   cbOverlay.classList.add('is-open');
-  if (!cbGreeted) { cbGreeted = true; cbPush('bot', '你好，我是这个站上的问答助手。学校、专业、爱好、作品、联系方式都可以问我；也可以自己打一句试试。'); }
+  if (!cbGreeted) { cbGreeted = true; cbPush('bot', '你好，我是王俊洋的数字分身。学校、专业、爱好、作品、联系方式都可以问我；也可以自己打一句试试。'); }
   if (cbInput) setTimeout(function () { cbInput.focus(); }, 60);
 }
 
